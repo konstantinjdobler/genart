@@ -49,7 +49,7 @@ class conditionalGAN(pl.LightningModule):
         imgs, features = batch
         # sample noise
         z = torch.randn(imgs.shape[0], self.hparams.latent_dim, 1, 1)
-        z = z.type_as(imgs)
+        z, features = z.type_as(imgs), features.type_as(imgs)
 
         # train generator
         if optimizer_idx == 0:
