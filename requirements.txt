@@ -1,0 +1,8 @@
+Cython
+matplotlib
+pandas
+numpy
+torch
+pytorch-lightning
+wandb
+python-dotenv    
