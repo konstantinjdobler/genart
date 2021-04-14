@@ -4,6 +4,7 @@
 I recommend to setup a virtualenv using Python 3.7.
 Then, inside the virtualenv, run: `pip install -r requirements.txt`.
 
+Put the dataset into a root-level `data` folder.
 ## Training
 For example: `python src/train.py -d ./data/wikiart-emotions --no-wandb --cpu -i 64 -b 8 -w 8`
 

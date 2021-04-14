@@ -9,7 +9,7 @@ from PIL import Image
 
 class WikiArtEmotionsDataModule(pl.LightningDataModule):
 
-    def __init__(self, data_dir: str, batch_size: int, num_workers: int, image_resizing: int):
+    def __init__(self, data_dir: str, batch_size: int, num_workers: int, image_resizing: int, fast_debug: bool = False):
         super().__init__()
         self.image_subfolder = Path(data_dir + "/images")
         self.annotation_path = Path(
@@ -18,6 +18,7 @@ class WikiArtEmotionsDataModule(pl.LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.image_size = image_resizing
+        self.fast_debug = fast_debug
 
         self.transform = transforms.Compose([
             transforms.ToTensor(),
@@ -33,10 +34,10 @@ class WikiArtEmotionsDataModule(pl.LightningDataModule):
 
     def prepare_data(self):
         self.train_set = AnnotatedImageDataset(str(self.image_subfolder), str(
-            self.annotation_path), transform=self.transform)
+            self.annotation_path), transform=self.transform, fast_debug=self.fast_debug)
 
     def train_dataloader(self):
-        return DataLoader(self.train_set, batch_size=self.batch_size, num_workers=self.num_workers)
+        return DataLoader(self.train_set, batch_size=self.batch_size, num_workers=self.num_workers, drop_last=True, shuffle=True)
 
     # def val_dataloader(self):
     #     return DataLoader(self.mnist_val, batch_size=self.batch_size, num_workers=self.num_workers)
@@ -46,7 +47,7 @@ class WikiArtEmotionsDataModule(pl.LightningDataModule):
 
 
 class AnnotatedImageDataset(Dataset):
-    def __init__(self, image_root, annotation_file, transform):
+    def __init__(self, image_root, annotation_file, transform, fast_debug):
         super(AnnotatedImageDataset, self).__init__()
         self.transform = transform
 
@@ -60,6 +61,8 @@ class AnnotatedImageDataset(Dataset):
                 'annotations': torch.FloatTensor(list(map(float, entry.split('\t')[12:])))
             } for entry in data[1:]
         ]
+        if fast_debug:
+            self.image_files = self.image_files[:20]
 
     def __len__(self):
         return len(self.image_files)

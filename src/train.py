@@ -2,8 +2,6 @@ import argparse
 from datetime import datetime
 import os
 
-import torch
-import wandb
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 from torch.backends import cudnn
@@ -25,22 +23,29 @@ parser.add_argument('--results-dir', '-c', type=str,
 parser.add_argument('--training-name', '-n', type=str,
                     help='Name you want to use for this training run, will be used in '
                          'log and model saving.', default=datetime.now().strftime('%d-%m-%Y_%H_%M_%S'))
-parser.add_argument('--image-resizing', '-i', type=int, default=400)
+parser.add_argument('--image-resizing', '-i', type=int, default=224)
 parser.add_argument('--no-wandb', action="store_true",
                     help="Disable logging to wandb")
 parser.add_argument('--tags', type=str, nargs='+',
                     default=[], help="Tag this run in wandb.")
-parser.add_argument('--gpus', type=int, nargs='+', default=[0])
+parser.add_argument('--gpus', type=int, nargs='+', default=-1,
+                    help="specify gpus to use. default is to use all available")
 parser.add_argument('--cpu', action='store_true',
                     help="use cpu instead of gpu")
+parser.add_argument('--fast-debug', action="store_true",
+                    help="do a fast run through the code to check for errors")
 
 if __name__ == '__main__':
     # Needed because of multiprocessing error in Google Colab
-    # __spec__ = None
+    __spec__ = None
 
     config, _ = parser.parse_known_args()
     if config.cpu is True:
         config.gpus = None
+    if config.fast_debug is True:
+        config.batch_size = 4
+        config.epochs = 2
+        config.no_wandb = True
     config.results_dir = config.results_dir + config.training_name
     print(f"Results will be saved to {config.results_dir}")
     os.makedirs(config.results_dir, exist_ok=True)
@@ -52,7 +57,7 @@ if __name__ == '__main__':
     cudnn.benchmark = True
 
     dm = WikiArtEmotionsDataModule(
-        config.data_dir, config.batch_size, config.workers, config.image_resizing)
+        config.data_dir, config.batch_size, config.workers, config.image_resizing, fast_debug=config.fast_debug)
     model = GAN(*dm.size(), lr=config.lr,
                 batch_size=config.batch_size, latent_dim=100)
 
