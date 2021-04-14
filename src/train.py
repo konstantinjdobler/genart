@@ -8,7 +8,7 @@ from torch.backends import cudnn
 from data_loading import WikiArtEmotionsDataModule
 from helpers import WANDB_PROJECT_NAME, start_wandb_logging
 
-from models import GAN
+from models import conditionalGAN
 
 
 parser = argparse.ArgumentParser("Parsing training arguments")
@@ -17,13 +17,16 @@ parser.add_argument('--lr', type=float, default=0.001)
 parser.add_argument('--epochs', '-e', type=int, default=20)
 parser.add_argument('--workers', '-w', type=int, default=4)
 parser.add_argument('--batch-size', '-b', type=int, default=4)
-parser.add_argument('--data-dir', '-d', type=str, required=True)
+parser.add_argument('--data-dir', '-d', type=str,
+                    default="./data/wikiart-emotions")
+parser.add_argument('--num-features', '-f', type=int, default=60)
+parser.add_argument('--latent-dim', '-l', type=int, default=200)
 parser.add_argument('--results-dir', '-c', type=str,
                     default=f"./results/")
 parser.add_argument('--training-name', '-n', type=str,
                     help='Name you want to use for this training run, will be used in '
                          'log and model saving.', default=datetime.now().strftime('%d-%m-%Y_%H_%M_%S'))
-parser.add_argument('--image-resizing', '-i', type=int, default=224)
+parser.add_argument('--image-resizing', '-i', type=int, default=256)
 parser.add_argument('--no-wandb', action="store_true",
                     help="Disable logging to wandb")
 parser.add_argument('--tags', type=str, nargs='+',
@@ -58,8 +61,8 @@ if __name__ == '__main__':
 
     dm = WikiArtEmotionsDataModule(
         config.data_dir, config.batch_size, config.workers, config.image_resizing, fast_debug=config.fast_debug)
-    model = GAN(*dm.size(), lr=config.lr,
-                batch_size=config.batch_size, latent_dim=100)
+    model = conditionalGAN(*dm.size(), lr=config.lr,
+                           batch_size=config.batch_size, latent_dim=config.latent_dim, num_features=config.num_features)
 
     logger = None
     if not config.no_wandb:

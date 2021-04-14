@@ -1,60 +1,12 @@
-from typing import OrderedDict
 import pytorch_lightning as pl
 import torch
 import torchvision
-import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
+from deep_convolutional_model import Generator, Discriminator
+from naive_model import NaiveGenerator, NaiveDiscriminator
 
 
-class Discriminator(nn.Module):
-    def __init__(self, img_shape):
-        super().__init__()
-
-        self.model = nn.Sequential(
-            nn.Linear(int(np.prod(img_shape)), 512),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(512, 256),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(256, 1),
-            nn.Sigmoid(),
-        )
-
-    def forward(self, img):
-        img_flat = img.view(img.size(0), -1)
-        validity = self.model(img_flat)
-
-        return validity
-
-
-class Generator(nn.Module):
-    def __init__(self, latent_dim, img_shape):
-        super().__init__()
-        self.img_shape = img_shape
-
-        def block(in_feat, out_feat, normalize=True):
-            layers = [nn.Linear(in_feat, out_feat)]
-            if normalize:
-                layers.append(nn.BatchNorm1d(out_feat, 0.8))
-            layers.append(nn.LeakyReLU(0.2, inplace=True))
-            return layers
-
-        self.model = nn.Sequential(
-            *block(latent_dim, 128, normalize=False),
-            *block(128, 256),
-            *block(256, 512),
-            *block(512, 1024),
-            nn.Linear(1024, int(np.prod(img_shape))),
-            nn.Tanh()
-        )
-
-    def forward(self, z):
-        img = self.model(z)
-        img = img.view(img.size(0), *self.img_shape)
-        return img
-
-
-class GAN(pl.LightningModule):
+class conditionalGAN(pl.LightningModule):
 
     def __init__(
         self,
@@ -62,9 +14,11 @@ class GAN(pl.LightningModule):
         width,
         height,
         latent_dim,
+        num_features,
         lr,
         batch_size,
-        **kwargs
+        condition=True,
+        ** kwargs
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -72,31 +26,36 @@ class GAN(pl.LightningModule):
         # networks
         data_shape = (channels, width, height)
         self.generator = Generator(
-            latent_dim=self.hparams.latent_dim, img_shape=data_shape)
-        self.discriminator = Discriminator(img_shape=data_shape)
+            latent_dim=self.hparams.latent_dim, num_features=self.hparams.num_features, img_shape=data_shape, )
+        self.discriminator = Discriminator(
+            num_features=self.hparams.num_features, img_shape=data_shape)
 
-        self.validation_z = torch.randn(8, self.hparams.latent_dim)
+        self.validation_z = torch.randn(8, self.hparams.latent_dim, 1, 1)
 
-        self.example_input_array = torch.zeros(2, self.hparams.latent_dim)
+        self.example_input_array = torch.zeros(
+            8, self.hparams.latent_dim, 1, 1)
+        self.example_feature_array = torch.zeros(
+            8, self.hparams.num_features)
 
-    def forward(self, z):
-        return self.generator(z)
+    def forward(self, z, features=None):
+        if features is None:
+            features = self.example_feature_array
+        return self.discriminator(self.generator(z, features), features)
 
     def adversarial_loss(self, y_hat, y):
         return F.binary_cross_entropy(y_hat, y)
 
     def training_step(self, batch, batch_idx, optimizer_idx):
-        imgs, _ = batch
-
+        imgs, features = batch
         # sample noise
-        z = torch.randn(imgs.shape[0], self.hparams.latent_dim)
+        z = torch.randn(imgs.shape[0], self.hparams.latent_dim, 1, 1)
         z = z.type_as(imgs)
 
         # train generator
         if optimizer_idx == 0:
 
             # generate images
-            self.generated_imgs = self(z)
+            self.generated_imgs = self.generator(z, features)
 
             # log sampled images
             sample_imgs = self.generated_imgs[:6]
@@ -110,7 +69,8 @@ class GAN(pl.LightningModule):
             valid = valid.type_as(imgs)
 
             # adversarial loss is binary cross-entropy
-            g_loss = self.adversarial_loss(self.discriminator(self(z)), valid)
+            g_loss = self.adversarial_loss(
+                self.discriminator(self.generator(z, features), features), valid)
 
             self.log('g_loss', g_loss,
                      on_epoch=True, prog_bar=True)
@@ -124,14 +84,15 @@ class GAN(pl.LightningModule):
             valid = torch.ones(imgs.size(0), 1)
             valid = valid.type_as(imgs)
 
-            real_loss = self.adversarial_loss(self.discriminator(imgs), valid)
+            real_loss = self.adversarial_loss(
+                self.discriminator(imgs, features), valid)
 
             # how well can it label as fake?
             fake = torch.zeros(imgs.size(0), 1)
             fake = fake.type_as(imgs)
 
             fake_loss = self.adversarial_loss(
-                self.discriminator(self(z).detach()), fake)
+                self.discriminator(self.generator(z, features).detach(), features), fake)
 
             # discriminator loss is the average of these
             d_loss = (real_loss + fake_loss) / 2
@@ -154,7 +115,7 @@ class GAN(pl.LightningModule):
         z = self.validation_z.type_as(self.generator.model[0].weight)
 
         # log sampled images
-        sample_imgs = self(z)
+        sample_imgs = self.generator(z, self.example_feature_array)
         grid = torchvision.utils.make_grid(sample_imgs)
         self.logger.experiment.add_image(
             'epoch_generated_images', grid, self.current_epoch)
