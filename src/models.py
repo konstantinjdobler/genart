@@ -33,9 +33,9 @@ class conditionalGAN(pl.LightningModule):
         self.validation_z = torch.randn(8, self.hparams.latent_dim, 1, 1)
 
         self.example_input_array = torch.zeros(
-            8, self.hparams.latent_dim, 1, 1)
+            8, self.hparams.latent_dim, 1, 1).to(self.device)
         self.example_feature_array = torch.zeros(
-            8, self.hparams.num_features)
+            8, self.hparams.num_features).to(self.device)
 
     def forward(self, z, features=None):
         if features is None:
@@ -49,7 +49,7 @@ class conditionalGAN(pl.LightningModule):
         imgs, features = batch
         # sample noise
         z = torch.randn(imgs.shape[0], self.hparams.latent_dim, 1, 1)
-        z, features = z.type_as(imgs), features.type_as(imgs)
+        z, features = z.to(self.device), features.to(self.device)
 
         # train generator
         if optimizer_idx == 0:
