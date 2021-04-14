@@ -1,12 +1,13 @@
 import argparse
 from datetime import datetime
 import os
+from pathlib import Path
 
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 from torch.backends import cudnn
 from data_loading import WikiArtEmotionsDataModule
-from helpers import WANDB_PROJECT_NAME, start_wandb_logging
+from helpers import WANDB_PROJECT_NAME, push_file_to_wandb, start_wandb_logging
 
 from models import conditionalGAN
 
@@ -71,6 +72,8 @@ if __name__ == '__main__':
         start_wandb_logging(config, model, project=WANDB_PROJECT_NAME)
         logger = WandbLogger(project=WANDB_PROJECT_NAME, log_model=True)
 
-    trainer = pl.Trainer(gpus=config.gpus, max_epochs=config.epochs,
-                         progress_bar_refresh_rate=1)
+    trainer = pl.Trainer.from_argparse_args(config, gpus=config.gpus, max_epochs=config.epochs,
+                                            progress_bar_refresh_rate=1, logger=logger, weights_save_path=config.results_dir)
     trainer.fit(model, dm)
+    if not config.no_wandb:
+        push_file_to_wandb(str(Path(f"{config.checkpoint_dir}/*")))
