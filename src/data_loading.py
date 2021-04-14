@@ -3,7 +3,8 @@ import torch
 import pytorch_lightning as pl
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, random_split, Dataset
+from PIL import Image
 
 
 class WikiArtEmotionsDataModule(pl.LightningDataModule):
@@ -30,8 +31,8 @@ class WikiArtEmotionsDataModule(pl.LightningDataModule):
         self.dims = (3, self.image_size, self.image_size)
         # self.num_classes = 10
 
-    def setup(self, stage=None):
-        self.train_set = ImageFeatureFolder(str(self.data_dir), str(
+    def prepare_data(self):
+        self.train_set = AnnotatedImageDataset(str(self.image_subfolder), str(
             self.annotation_path), transform=self.transform)
 
     def train_dataloader(self):
@@ -44,18 +45,29 @@ class WikiArtEmotionsDataModule(pl.LightningDataModule):
     #     return DataLoader(self.mnist_test, batch_size=self.batch_size, num_workers=self.num_workers)
 
 
-class ImageFeatureFolder(datasets.ImageFolder):
+class AnnotatedImageDataset(Dataset):
     def __init__(self, image_root, annotation_file, transform):
-        super(ImageFeatureFolder, self).__init__(
-            root=image_root, transform=transform)
+        super(AnnotatedImageDataset, self).__init__()
+        self.transform = transform
 
         with open(annotation_file, 'r') as f:
             data = f.read()
         data = data.strip().split('\n')
-        self.attrs = torch.FloatTensor(
-            [list(map(float, line.split('\t')[12:])) for line in data[1:]])
+
+        self.image_files = [
+            {
+                'path': Path(image_root) / (entry.split('\t')[0] + ".jpg"),
+                'annotations': torch.FloatTensor(list(map(float, entry.split('\t')[12:])))
+            } for entry in data[1:]
+        ]
+
+    def __len__(self):
+        return len(self.image_files)
 
     def __getitem__(self, index):
-        img, _ = super().__getitem__(index)
+        img_data = self.image_files[index]
 
-        return img, self.attrs[index]
+        img = Image.open(str(img_data['path']))
+        if self.transform:
+            img = self.transform(img)
+        return img, img_data['annotations']

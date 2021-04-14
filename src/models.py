@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
+
 class Discriminator(nn.Module):
     def __init__(self, img_shape):
         super().__init__()
@@ -24,6 +25,7 @@ class Discriminator(nn.Module):
         validity = self.model(img_flat)
 
         return validity
+
 
 class Generator(nn.Module):
     def __init__(self, latent_dim, img_shape):
@@ -50,7 +52,8 @@ class Generator(nn.Module):
         img = self.model(z)
         img = img.view(img.size(0), *self.img_shape)
         return img
-        
+
+
 class GAN(pl.LightningModule):
 
     def __init__(
@@ -68,7 +71,8 @@ class GAN(pl.LightningModule):
 
         # networks
         data_shape = (channels, width, height)
-        self.generator = Generator(latent_dim=self.hparams.latent_dim, img_shape=data_shape)
+        self.generator = Generator(
+            latent_dim=self.hparams.latent_dim, img_shape=data_shape)
         self.discriminator = Discriminator(img_shape=data_shape)
 
         self.validation_z = torch.randn(8, self.hparams.latent_dim)
@@ -106,13 +110,10 @@ class GAN(pl.LightningModule):
 
             # adversarial loss is binary cross-entropy
             g_loss = self.adversarial_loss(self.discriminator(self(z)), valid)
-            tqdm_dict = {'g_loss': g_loss}
-            output = OrderedDict({
-                'loss': g_loss,
-                'progress_bar': tqdm_dict,
-                'log': tqdm_dict
-            })
-            return output
+
+            self.log('g_loss', g_loss,
+                     on_epoch=True, prog_bar=True)
+            return g_loss
 
         # train discriminator
         if optimizer_idx == 1:
@@ -133,21 +134,19 @@ class GAN(pl.LightningModule):
 
             # discriminator loss is the average of these
             d_loss = (real_loss + fake_loss) / 2
-            tqdm_dict = {'d_loss': d_loss}
-            output = OrderedDict({
-                'loss': d_loss,
-                'progress_bar': tqdm_dict,
-                'log': tqdm_dict
-            })
-            return output
+            self.log('d_loss', d_loss,
+                     on_epoch=True, prog_bar=True)
+            return d_loss
 
     def configure_optimizers(self):
         lr = self.hparams.lr
-        b1 = 0.5 #self.hparams.b1
-        b2 = 0.99 # self.hparams.b2
+        b1 = 0.5  # self.hparams.b1
+        b2 = 0.99  # self.hparams.b2
 
-        opt_g = torch.optim.Adam(self.generator.parameters(), lr=lr, betas=(b1, b2))
-        opt_d = torch.optim.Adam(self.discriminator.parameters(), lr=lr, betas=(b1, b2))
+        opt_g = torch.optim.Adam(
+            self.generator.parameters(), lr=lr, betas=(b1, b2))
+        opt_d = torch.optim.Adam(
+            self.discriminator.parameters(), lr=lr, betas=(b1, b2))
         return [opt_g, opt_d], []
 
     def on_epoch_end(self):
@@ -156,4 +155,5 @@ class GAN(pl.LightningModule):
         # log sampled images
         sample_imgs = self(z)
         grid = torchvision.utils.make_grid(sample_imgs)
-        self.logger.experiment.add_image('generated_images', grid, self.current_epoch)
+        self.logger.experiment.add_image(
+            'generated_images', grid, self.current_epoch)

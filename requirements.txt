@@ -1,3 +1,4 @@
+wheel
 Cython
 matplotlib
 pandas

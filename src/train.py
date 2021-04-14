@@ -36,7 +36,7 @@ parser.add_argument('--cpu', action='store_true',
 
 if __name__ == '__main__':
     # Needed because of multiprocessing error in Google Colab
-    __spec__ = None
+    # __spec__ = None
 
     config, _ = parser.parse_known_args()
     if config.cpu is True:
@@ -64,5 +64,5 @@ if __name__ == '__main__':
         logger = WandbLogger(project=WANDB_PROJECT_NAME, log_model=True)
 
     trainer = pl.Trainer(gpus=config.gpus, max_epochs=config.epochs,
-                         progress_bar_refresh_rate=20)
+                         progress_bar_refresh_rate=1)
     trainer.fit(model, dm)
