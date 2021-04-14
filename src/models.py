@@ -117,4 +117,5 @@ class conditionalGAN(pl.LightningModule):
         # log sampled images
         sample_imgs = self.generator(z, self.example_feature_array.type_as(z))
         grid = torchvision.utils.make_grid(sample_imgs)
-        self.logger.experiment.log({'epoch_generated_images': grid})
+        self.logger.experiment.log(
+            {'epoch_generated_images': wandb.Image(grid)})
