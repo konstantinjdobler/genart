@@ -4,6 +4,7 @@ import torchvision
 import torch.nn.functional as F
 from deep_convolutional_model import Generator, Discriminator
 from naive_model import NaiveGenerator, NaiveDiscriminator
+import wandb
 
 
 class conditionalGAN(pl.LightningModule):
@@ -60,8 +61,7 @@ class conditionalGAN(pl.LightningModule):
             # log sampled images
             sample_imgs = self.generated_imgs[:6]
             grid = torchvision.utils.make_grid(sample_imgs)
-            self.logger.experiment.add_image(
-                'generated_images', grid, self.current_epoch)
+            self.logger.experiment.log({'generated_images': wandb.Image(grid)})
 
             # ground truth result (ie: all fake)
             # put on GPU because we created this tensor inside training_loop
@@ -117,5 +117,4 @@ class conditionalGAN(pl.LightningModule):
         # log sampled images
         sample_imgs = self.generator(z, self.example_feature_array.type_as(z))
         grid = torchvision.utils.make_grid(sample_imgs)
-        self.logger.experiment.add_image(
-            'epoch_generated_images', grid, self.current_epoch)
+        self.logger.experiment.log({'epoch_generated_images': grid})

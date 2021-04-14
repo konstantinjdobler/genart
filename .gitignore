@@ -4,6 +4,7 @@ wandb
 events.out.tfevents*
 .vscode
 lightning_logs
+results
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

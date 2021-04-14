@@ -4,13 +4,13 @@ import os
 from pathlib import Path
 
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.loggers import WandbLogger, wandb
 from torch.backends import cudnn
 from data_loading import WikiArtEmotionsDataModule
 from helpers import WANDB_PROJECT_NAME, push_file_to_wandb, start_wandb_logging
 
 from models import conditionalGAN
-
+import wandb
 
 parser = argparse.ArgumentParser("Parsing training arguments")
 
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     if config.fast_debug is True:
         config.batch_size = 4
         config.epochs = 2
-        config.no_wandb = True
+        # config.no_wandb = True
     config.results_dir = config.results_dir + config.training_name
     print(f"Results will be saved to {config.results_dir}")
     os.makedirs(config.results_dir, exist_ok=True)
@@ -71,9 +71,11 @@ if __name__ == '__main__':
         load_dotenv()
         start_wandb_logging(config, model, project=WANDB_PROJECT_NAME)
         logger = WandbLogger(project=WANDB_PROJECT_NAME, log_model=True)
-
-    trainer = pl.Trainer.from_argparse_args(config, gpus=config.gpus, max_epochs=config.epochs,
-                                            progress_bar_refresh_rate=1, logger=logger, weights_save_path=config.results_dir)
+        trainer = pl.Trainer.from_argparse_args(config, gpus=config.gpus, max_epochs=config.epochs,
+                                                progress_bar_refresh_rate=1, logger=logger, weights_save_path=wandb.run.dir)
+    else:
+        trainer = pl.Trainer.from_argparse_args(config, gpus=config.gpus, max_epochs=config.epochs,
+                                                progress_bar_refresh_rate=1, weights_save_path=wandb.run.dir)
     trainer.fit(model, dm)
-    if not config.no_wandb:
-        push_file_to_wandb(str(Path(f"{config.checkpoint_dir}/*")))
+    # if not config.no_wandb:
+    #     push_file_to_wandb("*.ckpt")
