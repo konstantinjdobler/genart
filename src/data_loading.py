@@ -5,6 +5,7 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 from torch.utils.data import DataLoader, random_split, Dataset
 from PIL import Image
+from torchvision.transforms.transforms import Resize
 
 
 class WikiArtEmotionsDataModule(pl.LightningDataModule):
@@ -23,6 +24,7 @@ class WikiArtEmotionsDataModule(pl.LightningDataModule):
         self.transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            transforms.Resize(self.image_size),
             transforms.RandomCrop(self.image_size)
         ])
 
