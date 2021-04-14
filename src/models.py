@@ -33,13 +33,13 @@ class conditionalGAN(pl.LightningModule):
         self.validation_z = torch.randn(8, self.hparams.latent_dim, 1, 1)
 
         self.example_input_array = torch.zeros(
-            8, self.hparams.latent_dim, 1, 1).to(self.device)
+            8, self.hparams.latent_dim, 1, 1)
         self.example_feature_array = torch.zeros(
-            8, self.hparams.num_features).to(self.device)
+            8, self.hparams.num_features)
 
     def forward(self, z, features=None):
         if features is None:
-            features = self.example_feature_array
+            features = self.example_feature_array.type_as(z)
         return self.discriminator(self.generator(z, features), features)
 
     def adversarial_loss(self, y_hat, y):
@@ -49,7 +49,7 @@ class conditionalGAN(pl.LightningModule):
         imgs, features = batch
         # sample noise
         z = torch.randn(imgs.shape[0], self.hparams.latent_dim, 1, 1)
-        z, features = z.to(self.device), features.to(self.device)
+        z, features = z.type_as(imgs), features.type_as(imgs)
 
         # train generator
         if optimizer_idx == 0:
@@ -115,7 +115,7 @@ class conditionalGAN(pl.LightningModule):
         z = self.validation_z.type_as(self.generator.model[0].weight)
 
         # log sampled images
-        sample_imgs = self.generator(z, self.example_feature_array)
+        sample_imgs = self.generator(z, self.example_feature_array.type_as(z))
         grid = torchvision.utils.make_grid(sample_imgs)
         self.logger.experiment.add_image(
             'epoch_generated_images', grid, self.current_epoch)
