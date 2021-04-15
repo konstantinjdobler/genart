@@ -6,6 +6,8 @@ from deep_convolutional_model import Generator, Discriminator
 from naive_model import NaiveGenerator, NaiveDiscriminator
 import wandb
 
+from optimizers import ExtraAdam
+
 
 class conditionalGAN(pl.LightningModule):
 
@@ -96,14 +98,14 @@ class conditionalGAN(pl.LightningModule):
         b1 = 0.5  # self.hparams.b1
         b2 = 0.99  # self.hparams.b2
 
-        opt_g = torch.optim.Adam(
+        opt_g = ExtraAdam(
             self.generator.parameters(), lr=lr, betas=(b1, b2))
-        opt_d = torch.optim.Adam(
+        opt_d = ExtraAdam(
             self.discriminator.parameters(), lr=lr, betas=(b1, b2))
         return [opt_g, opt_d], []
 
     def on_epoch_end(self):
-        z = self.validation_z.type_as(self.generator.model[0].weight)
+        z = self.validation_z.to(self.device)
 
         # log sampled images
         sample_imgs = self.generator(z, self.example_feature_array.type_as(z))

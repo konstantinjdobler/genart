@@ -14,7 +14,7 @@ import wandb
 
 parser = argparse.ArgumentParser("Parsing training arguments")
 
-parser.add_argument('--lr', type=float, default=0.001)
+parser.add_argument('--lr', type=float, default=0.00001)
 parser.add_argument('--epochs', '-e', type=int, default=20)
 parser.add_argument('--workers', '-w', type=int, default=4)
 parser.add_argument('--batch-size', '-b', type=int, default=4)
@@ -72,8 +72,8 @@ if __name__ == '__main__':
     start_wandb_logging(config, model, project=WANDB_PROJECT_NAME)
     logger = WandbLogger(project=WANDB_PROJECT_NAME, log_model=True)
     trainer = pl.Trainer.from_argparse_args(config, gpus=config.gpus, max_epochs=config.epochs,
-                                                progress_bar_refresh_rate=1, logger=logger, weights_save_path=wandb.run.dir)
-   
+                                            progress_bar_refresh_rate=1, logger=logger, weights_save_path=wandb.run.dir)
+
     trainer.fit(model, dm)
     # if not config.no_wandb:
     #     push_file_to_wandb("*.ckpt")
