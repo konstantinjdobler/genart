@@ -51,8 +51,8 @@ class conditionalGAN(pl.LightningModule):
     def training_step(self, batch, batch_idx, optimizer_idx):
         imgs, features = batch
         # sample noise
-        z = torch.randn(imgs.shape[0], self.hparams.latent_dim, 1, 1)
-        z, features = z.type_as(imgs), features.type_as(imgs)
+        z = torch.randn(
+            imgs.shape[0], self.hparams.latent_dim, 1, 1).type_as(imgs)
 
         # train generator
         if optimizer_idx == 0:
@@ -65,7 +65,7 @@ class conditionalGAN(pl.LightningModule):
             g_loss = self.adversarial_loss(
                 self.discriminator(self.generator(z, features), features), valid)
 
-            self.log('g_loss', g_loss,
+            self.log('g_loss', g_loss, on_step=True,
                      on_epoch=True, prog_bar=True)
             return g_loss
 
@@ -89,7 +89,7 @@ class conditionalGAN(pl.LightningModule):
 
             # discriminator loss is the average of these
             d_loss = (real_loss + fake_loss) / 2
-            self.log('d_loss', d_loss,
+            self.log('d_loss', d_loss, on_step=True,
                      on_epoch=True, prog_bar=True)
             return d_loss
 
@@ -98,6 +98,7 @@ class conditionalGAN(pl.LightningModule):
         b1 = 0.5  # self.hparams.b1
         b2 = 0.99  # self.hparams.b2
 
+        # This is supposed to be better for GANs than Adam
         opt_g = ExtraAdam(
             self.generator.parameters(), lr=lr, betas=(b1, b2))
         opt_d = ExtraAdam(
