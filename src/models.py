@@ -65,8 +65,8 @@ class conditionalGAN(pl.LightningModule):
             g_loss = self.adversarial_loss(
                 self.discriminator(self.generator(z, features), features), valid)
 
-            self.log('g_loss', g_loss, on_step=True,
-                     on_epoch=True, prog_bar=True)
+            self.log('train/g_loss', g_loss, on_epoch=True,
+                     on_step=True, logger=True, prog_bar=True)
             return g_loss
 
         # train discriminator
@@ -89,8 +89,8 @@ class conditionalGAN(pl.LightningModule):
 
             # discriminator loss is the average of these
             d_loss = (real_loss + fake_loss) / 2
-            self.log('d_loss', d_loss, on_step=True,
-                     on_epoch=True, prog_bar=True)
+            self.log('train/d_loss', d_loss, on_epoch=True,
+                     on_step=True, prog_bar=True)
             return d_loss
 
     def configure_optimizers(self):
@@ -99,9 +99,9 @@ class conditionalGAN(pl.LightningModule):
         b2 = 0.99  # self.hparams.b2
 
         # This is supposed to be better for GANs than Adam
-        opt_g = ExtraAdam(
+        opt_g = torch.optim.Adam(
             self.generator.parameters(), lr=lr, betas=(b1, b2))
-        opt_d = ExtraAdam(
+        opt_d = torch.optim.Adam(
             self.discriminator.parameters(), lr=lr, betas=(b1, b2))
         return [opt_g, opt_d], []
 
@@ -111,5 +111,5 @@ class conditionalGAN(pl.LightningModule):
         # log sampled images
         sample_imgs = self.generator(z, self.example_feature_array.type_as(z))
         grid = torchvision.utils.make_grid(sample_imgs[:6])
-        self.logger.experiment.log(
-            {'epoch_generated_images': wandb.Image(grid)}, commit=False)
+        self.logger.experiment.log({'epoch_generated_images': [
+            wandb.Image(grid, caption=f"Samples epoch {self.current_epoch}")]}, commit=False)

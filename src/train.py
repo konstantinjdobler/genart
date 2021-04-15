@@ -48,7 +48,7 @@ if __name__ == '__main__':
         config.gpus = None
     if config.fast_debug is True:
         config.batch_size = 4
-        config.epochs = 2
+        config.epochs = 4
         config.no_wandb = True
     config.results_dir = config.results_dir + config.training_name
     print(f"Results will be saved to {config.results_dir}")
@@ -70,10 +70,9 @@ if __name__ == '__main__':
     from dotenv import load_dotenv
     load_dotenv()
     start_wandb_logging(config, model, project=WANDB_PROJECT_NAME)
-    logger = WandbLogger(project=WANDB_PROJECT_NAME, log_model=True)
+    logger = WandbLogger(project=WANDB_PROJECT_NAME)
     trainer = pl.Trainer.from_argparse_args(config, gpus=config.gpus, max_epochs=config.epochs,
-                                            progress_bar_refresh_rate=1, logger=logger, weights_save_path=wandb.run.dir)
+                                            progress_bar_refresh_rate=1, logger=logger)
 
     trainer.fit(model, dm)
-    # if not config.no_wandb:
-    #     push_file_to_wandb("*.ckpt")
+    # push_file_to_wandb(f"{config.results_dir}/**/*/*.ckpt")
