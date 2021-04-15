@@ -4,7 +4,8 @@ import os
 from pathlib import Path
 
 import pytorch_lightning as pl
-from pytorch_lightning.loggers import WandbLogger, wandb
+from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from torch.backends import cudnn
 from data_loading import WikiArtEmotionsDataModule
 from helpers import WANDB_PROJECT_NAME, push_file_to_wandb, start_wandb_logging
@@ -70,9 +71,11 @@ if __name__ == '__main__':
     from dotenv import load_dotenv
     load_dotenv()
     start_wandb_logging(config, model, project=WANDB_PROJECT_NAME)
-    logger = WandbLogger(project=WANDB_PROJECT_NAME)
+    logger = WandbLogger(project=WANDB_PROJECT_NAME, experiment=wandb.run)
+    checkpoint_callback = ModelCheckpoint(
+        dirpath=config.results_dir)
     trainer = pl.Trainer.from_argparse_args(config, gpus=config.gpus, max_epochs=config.epochs,
-                                            progress_bar_refresh_rate=1, logger=logger)
+                                            progress_bar_refresh_rate=1, logger=logger, callbacks=[checkpoint_callback])
 
     trainer.fit(model, dm)
-    # push_file_to_wandb(f"{config.results_dir}/**/*/*.ckpt")
+    push_file_to_wandb(f"{config.results_dir}/*.ckpt")
