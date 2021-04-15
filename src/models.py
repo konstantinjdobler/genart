@@ -27,7 +27,7 @@ class conditionalGAN(pl.LightningModule):
         # networks
         data_shape = (channels, width, height)
         self.generator = Generator(
-            latent_dim=self.hparams.latent_dim, num_features=self.hparams.num_features, img_shape=data_shape, )
+            latent_dim=self.hparams.latent_dim, num_features=self.hparams.num_features, img_shape=data_shape)
         self.discriminator = Discriminator(
             num_features=self.hparams.num_features, img_shape=data_shape)
 
