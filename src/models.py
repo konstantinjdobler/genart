@@ -54,15 +54,6 @@ class conditionalGAN(pl.LightningModule):
 
         # train generator
         if optimizer_idx == 0:
-
-            # generate images
-            self.generated_imgs = self.generator(z, features)
-
-            # log sampled images
-            sample_imgs = self.generated_imgs[:6]
-            grid = torchvision.utils.make_grid(sample_imgs)
-            self.logger.experiment.log({'generated_images': wandb.Image(grid)})
-
             # ground truth result (ie: all fake)
             # put on GPU because we created this tensor inside training_loop
             valid = torch.ones(imgs.size(0), 1)
@@ -116,6 +107,6 @@ class conditionalGAN(pl.LightningModule):
 
         # log sampled images
         sample_imgs = self.generator(z, self.example_feature_array.type_as(z))
-        grid = torchvision.utils.make_grid(sample_imgs)
+        grid = torchvision.utils.make_grid(sample_imgs[:6])
         self.logger.experiment.log(
-            {'epoch_generated_images': wandb.Image(grid)})
+            {'epoch_generated_images': wandb.Image(grid)}, commit=False)
