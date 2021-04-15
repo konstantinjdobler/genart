@@ -81,9 +81,6 @@ class Generator(nn.Module):
                                  activation_function=nn.Tanh(), batch_norm=False),
         )
 
-        # hack to work with on_epoch_end
-        self.model = [self.main[0].conv_layer]
-
     def forward(self, x, attr):
         attr = attr.view(-1, self.num_features, 1, 1)
         x = torch.cat([x, attr], 1)
