@@ -2,19 +2,25 @@ from pathlib import Path
 import torch
 import pytorch_lightning as pl
 import torchvision.transforms as transforms
-import torchvision.datasets as datasets
-from torch.utils.data import DataLoader, random_split, Dataset
+from torch.utils.data import DataLoader,  Dataset
 from PIL import Image
-from torchvision.transforms.transforms import Resize
+import os
 
 
 class WikiArtEmotionsDataModule(pl.LightningDataModule):
 
     def __init__(self, data_dir: str, batch_size: int, num_workers: int, image_resizing: int, fast_debug: bool = False):
         super().__init__()
-        self.image_subfolder = Path(data_dir + "/images")
+        # check if we can use dataset resized to smaller size
+        available_resizes = [dir[0].split("-")[-1]
+                             for dir in os.walk(data_dir) if "images-" in dir[0]]
+        resize_suffix = "" if len(
+            available_resizes) == 0 else f"-{min((size for size in available_resizes if int(size) > image_resizing))}"
+        self.image_subfolder = Path(data_dir + f"/images{resize_suffix}")
         self.annotation_path = Path(
             data_dir + "/WikiArt-Emotions/WikiArt-Emotions-Ag4.tsv")
+        print("Using dataset", self.image_subfolder,
+              "and annotation file", self.annotation_path)
         self.data_dir = data_dir
         self.batch_size = batch_size
         self.num_workers = num_workers
@@ -56,7 +62,6 @@ class AnnotatedImageDataset(Dataset):
         with open(annotation_file, 'r') as f:
             data = f.read()
         data = data.strip().split('\n')
-
         self.image_files = [
             {
                 'path': Path(image_root) / (entry.split('\t')[0] + ".jpg"),

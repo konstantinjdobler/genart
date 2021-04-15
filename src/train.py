@@ -49,7 +49,7 @@ if __name__ == '__main__':
     if config.fast_debug is True:
         config.batch_size = 4
         config.epochs = 2
-        # config.no_wandb = True
+        config.no_wandb = True
     config.results_dir = config.results_dir + config.training_name
     print(f"Results will be saved to {config.results_dir}")
     os.makedirs(config.results_dir, exist_ok=True)
@@ -65,17 +65,15 @@ if __name__ == '__main__':
     model = conditionalGAN(*dm.size(), lr=config.lr,
                            batch_size=config.batch_size, latent_dim=config.latent_dim, num_features=config.num_features)
 
-    logger = None
-    if not config.no_wandb:
-        from dotenv import load_dotenv
-        load_dotenv()
-        start_wandb_logging(config, model, project=WANDB_PROJECT_NAME)
-        logger = WandbLogger(project=WANDB_PROJECT_NAME, log_model=True)
-        trainer = pl.Trainer.from_argparse_args(config, gpus=config.gpus, max_epochs=config.epochs,
+    if config.no_wandb:
+        os.environ["WANDB_MODE"] = "dryrun"
+    from dotenv import load_dotenv
+    load_dotenv()
+    start_wandb_logging(config, model, project=WANDB_PROJECT_NAME)
+    logger = WandbLogger(project=WANDB_PROJECT_NAME, log_model=True)
+    trainer = pl.Trainer.from_argparse_args(config, gpus=config.gpus, max_epochs=config.epochs,
                                                 progress_bar_refresh_rate=1, logger=logger, weights_save_path=wandb.run.dir)
-    else:
-        trainer = pl.Trainer.from_argparse_args(config, gpus=config.gpus, max_epochs=config.epochs,
-                                                progress_bar_refresh_rate=1, weights_save_path=wandb.run.dir)
+   
     trainer.fit(model, dm)
     # if not config.no_wandb:
     #     push_file_to_wandb("*.ckpt")
