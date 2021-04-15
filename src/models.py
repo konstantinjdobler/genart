@@ -75,7 +75,7 @@ class conditionalGAN(pl.LightningModule):
 
             # how well can it label as real?
             valid = torch.ones(imgs.size(0), 1)
-            valid = randomly_flip_labels(valid, p=0.1)
+            valid = randomly_flip_labels(valid, p=0.2)
             valid = valid.type_as(imgs)
 
             real_loss = self.adversarial_loss(
@@ -83,6 +83,7 @@ class conditionalGAN(pl.LightningModule):
 
             # how well can it label as fake?
             fake = torch.zeros(imgs.size(0), 1)
+            fake = randomly_flip_labels(fake, p=0.2)
             fake = fake.type_as(imgs)
 
             fake_loss = self.adversarial_loss(

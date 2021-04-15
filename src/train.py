@@ -79,3 +79,4 @@ if __name__ == '__main__':
 
     trainer.fit(model, dm)
     push_file_to_wandb(f"{config.results_dir}/*.ckpt")
+    wandb.finish()
