@@ -67,9 +67,11 @@ class conditionalGAN(pl.LightningModule):
             torch.nn.init.zeros_(m.bias)
 
     def forward(self, z, features=None):
+        '''Do a whole pass through the GAN but return only the genrated images. Don't use if performance is key'''
         if features is None:
             features = self.example_feature_array.type_as(z)
         generated_images = self.generator(z, features)
+        # Do this step to also show the discriminator in yTorch-Lightnings automatic model summary
         dicriminator_decision = self.discriminator(generated_images, features)
         return generated_images
 
@@ -77,6 +79,8 @@ class conditionalGAN(pl.LightningModule):
         return F.binary_cross_entropy(y_hat, y)
 
     def _generator_step(self, real_imgs, features):
+        '''Measure generators's ability to generate samples that can fool the discriminator'''
+
         z = torch.randn(
             real_imgs.shape[0], self.hparams.latent_dim, 1, 1).type_as(real_imgs)
 
@@ -91,11 +95,10 @@ class conditionalGAN(pl.LightningModule):
             self.discriminator(self.generator(z, features), features), valid_ground_truth)
         self.log('train/g_loss', g_loss, on_epoch=True,
                  on_step=True, logger=True, prog_bar=True)
-        print(z.requires_grad, real_imgs.requires_grad, )
         return g_loss
 
     def _discriminator_step(self, real_imgs, features):
-        '''Measure discriminator's ability to classify real from generated samples'''
+        '''Measure discriminator's ability to differntiate between real and generated samples'''
         z = torch.randn(
             real_imgs.shape[0], self.hparams.latent_dim, 1, 1).type_as(real_imgs)
 
