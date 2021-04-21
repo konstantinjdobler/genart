@@ -4,7 +4,7 @@ from torch import nn
 import torchvision
 import torch.nn.functional as F
 
-from gan.conditional_dc_gan import Generator, Discriminator
+from gan.conditional_dc_gan import cDCGenerator, cDCDiscriminator, cDCGeneratorSmoothed
 from common.helpers import randomly_flip_labels
 import wandb
 
@@ -32,9 +32,9 @@ class conditionalGAN(pl.LightningModule):
         # networks
         data_shape = (channels, width, height)
         self.generator = self._get_generator(
-            data_shape, GeneratorClass=Generator)
+            data_shape, GeneratorClass=cDCGeneratorSmoothed)
         self.discriminator = self._get_discriminator(
-            data_shape, DiscriminatorClass=Discriminator)
+            data_shape, DiscriminatorClass=cDCDiscriminator)
 
         self.validation_z = torch.randn(8, self.hparams.latent_dim, 1, 1)
 
