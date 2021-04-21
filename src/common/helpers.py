@@ -31,7 +31,7 @@ def try_wandb_login():
         return False
 
 
-WANDB_PROJECT_NAME = "blubber"
+WANDB_PROJECT_NAME = "genart-spike"
 WANDB_TEAM_NAME = "hpi-genart"
 
 

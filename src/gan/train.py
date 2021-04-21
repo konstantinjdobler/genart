@@ -7,7 +7,7 @@ sys.path.insert(0, abspath(join(dirname(__file__), '..')))  # nopep8
 import wandb
 from gan.outer_gan import conditionalGAN
 from common.helpers import WANDB_PROJECT_NAME, push_file_to_wandb, start_wandb_logging, before_run
-from common.data_loading import WikiArtEmotionsDataModule
+from common.data_loading import CelebADataModule, WikiArtEmotionsDataModule
 from common.argparser import get_training_parser, parse_config
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
@@ -27,6 +27,7 @@ if __name__ == '__main__':
     model = conditionalGAN(*dm.size(), lr=config.lr,
                            batch_size=config.batch_size, latent_dim=config.latent_dim,
                            num_features=config.num_features, label_flipping_p=config.label_flipping_p,
+                           label_smoothing=config.label_smoothing,
                            generator_key=config.generator_type, discriminator_key=config.discriminator_type)
 
     start_wandb_logging(config, model, project=WANDB_PROJECT_NAME)

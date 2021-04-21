@@ -26,6 +26,8 @@ def get_training_parser():
     parser.add_argument('--latent-dim', '-l', type=int, default=200)
     parser.add_argument('--label-flipping-p', '--lfp', type=float, default=0,
                         help="Probability for label flipping. Set to zero to disable.")
+    parser.add_argument('--label-smoothing', '--ls', type=float, default=1.0,
+                        help="Use label smoothing trick for discriminator. Argument determines how much labels are smoothed, 1 disables the trick.")
     ###################### ------------------ #####################
     parser.add_argument('--results-dir', '-c', type=str,
                         default=f"./results/")

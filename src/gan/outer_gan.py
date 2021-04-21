@@ -1,12 +1,13 @@
-import pytorch_lightning as pl
-import torch
-from torch import nn
-import torchvision
-import torch.nn.functional as F
-
-from gan.conditional_dc_gan import cDCGenerator, cDCDiscriminator, cDCGeneratorSmoothed
-from common.helpers import randomly_flip_labels
 import wandb
+from common.helpers import randomly_flip_labels
+from gan.conditional_dc_gan import cDCGenerator, cDCDiscriminator, cDCGeneratorSmoothed
+import torch.nn.functional as F
+import torchvision
+from torch import nn
+import torch
+import pytorch_lightning as pl
+from pytorch_lightning.metrics.functional import accuracy
+
 
 generator_dict = {
     'cdc-smoothed': cDCGeneratorSmoothed,
@@ -30,6 +31,7 @@ class conditionalGAN(pl.LightningModule):
         lr,
         batch_size,
         label_flipping_p,
+        label_smoothing,
         b1=0.5,
         b2=0.99,
         condition=True,
@@ -62,7 +64,7 @@ class conditionalGAN(pl.LightningModule):
         return generator
 
     def _get_discriminator(self, data_shape, DiscriminatorClass) -> nn.Module:
-        print("Using generator", DiscriminatorClass.__name__)
+        print("Using discriminator", DiscriminatorClass.__name__)
 
         discriminator = DiscriminatorClass(
             num_features=self.hparams.num_features, img_shape=data_shape)
@@ -100,7 +102,6 @@ class conditionalGAN(pl.LightningModule):
         # put on GPU because we created this tensor inside training_loop
         valid_ground_truth = torch.ones(
             real_imgs.size(0), 1).type_as(real_imgs)
-        valid_ground_truth = valid_ground_truth
 
         # adversarial loss is binary cross-entropy
         g_loss = self.adversarial_loss(
@@ -116,20 +117,31 @@ class conditionalGAN(pl.LightningModule):
 
         # ground truth result (ie: all fake)
         # how well can it label as real?
-        valid_ground_truth = randomly_flip_labels(
-            torch.ones(real_imgs.size(0), 1), p=self.hparams.label_flipping_p).type_as(real_imgs)
+        real_ground_truth = torch.ones(real_imgs.size(0), 1).uniform_(
+            self.hparams.label_smoothing, 1)  # label smoothing, if set to 1 nothing changes here
+        real_ground_truth = randomly_flip_labels(
+            real_ground_truth, p=self.hparams.label_flipping_p).type_as(real_imgs)
         fake_ground_truth = randomly_flip_labels(
             torch.zeros(real_imgs.size(0), 1), p=self.hparams.label_flipping_p).type_as(real_imgs)
 
-        real_loss = self.adversarial_loss(
-            self.discriminator(real_imgs, features), valid_ground_truth)
+        real_predictions = self.discriminator(real_imgs, features)
+        real_loss = self.adversarial_loss(real_predictions, real_ground_truth)
+        real_detection_accuracy = accuracy(
+            real_predictions, torch.ones(real_imgs.size(0), 1, dtype=int))
 
-        fake_loss = self.adversarial_loss(
-            self.discriminator(self.generator(z, features).detach(), features), fake_ground_truth)
+        fake_predictions = self.discriminator(
+            self.generator(z, features).detach(), features)
+        fake_loss = self.adversarial_loss(fake_predictions, fake_ground_truth)
+        fake_detection_accuracy = accuracy(
+            fake_predictions, torch.zeros(real_imgs.size(0), 1, dtype=int))
 
         # discriminator loss is the average of these
         d_loss = (real_loss + fake_loss) / 2
         self.log('train/d_loss', d_loss, on_epoch=True,
+                 on_step=True, prog_bar=True)
+        self.log('train/d_accuracy_fake', fake_detection_accuracy, on_epoch=True,
+                 on_step=True, prog_bar=True)
+        self.log('train/d_accuracy_real', real_detection_accuracy, on_epoch=True,
                  on_step=True, prog_bar=True)
         return d_loss
 

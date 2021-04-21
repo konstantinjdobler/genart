@@ -86,7 +86,7 @@ class AnnotatedImageDataset(Dataset):
 
 
 class CelebAImageFeatureFolder(torchvision.datasets.ImageFolder):
-    def __init__(self, image_root, landmark_file, transform):
+    def __init__(self, image_root, landmark_file, transform, fast_debug):
         super(CelebAImageFeatureFolder, self).__init__(
             root=image_root, transform=transform)
 
@@ -95,6 +95,10 @@ class CelebAImageFeatureFolder(torchvision.datasets.ImageFolder):
         data = data.strip().split('\n')
         self.attrs = torch.FloatTensor(
             [list(map(float, line.split()[1:])) for line in data[2:]])
+        if fast_debug:
+            self.attrs = self.attrs[:20]
+            self.imgs = self.imgs[:20]
+            self.samples = self.imgs
 
     def __getitem__(self, index):
         img, _ = super().__getitem__(index)
@@ -135,7 +139,7 @@ class CelebADataModule(pl.LightningDataModule):
         # self.num_classes = 10
 
     def prepare_data(self):
-        self.train_set = AnnotatedImageDataset(str(self.image_subfolder), str(
+        self.train_set = CelebAImageFeatureFolder(str(self.image_subfolder), str(
             self.annotation_path), transform=self.transform, fast_debug=self.fast_debug)
 
     def train_dataloader(self):
