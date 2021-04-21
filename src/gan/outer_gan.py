@@ -127,22 +127,22 @@ class conditionalGAN(pl.LightningModule):
         real_predictions = self.discriminator(real_imgs, features)
         real_loss = self.adversarial_loss(real_predictions, real_ground_truth)
         real_detection_accuracy = accuracy(
-            real_predictions, torch.ones(real_imgs.size(0), 1, dtype=int))
+            real_predictions, torch.ones(real_imgs.size(0), 1, dtype=int, device=self.device))
 
         fake_predictions = self.discriminator(
             self.generator(z, features).detach(), features)
         fake_loss = self.adversarial_loss(fake_predictions, fake_ground_truth)
         fake_detection_accuracy = accuracy(
-            fake_predictions, torch.zeros(real_imgs.size(0), 1, dtype=int))
+            fake_predictions, torch.zeros(real_imgs.size(0), 1, dtype=int, device=self.device))
 
         # discriminator loss is the average of these
         d_loss = (real_loss + fake_loss) / 2
         self.log('train/d_loss', d_loss, on_epoch=True,
                  on_step=True, prog_bar=True)
-        self.log('train/d_accuracy_fake', fake_detection_accuracy, on_epoch=True,
-                 on_step=True, prog_bar=True)
-        self.log('train/d_accuracy_real', real_detection_accuracy, on_epoch=True,
-                 on_step=True, prog_bar=True)
+        self.log('train/d_accuracy_fake', fake_detection_accuracy,
+                 on_epoch=True, prog_bar=True)
+        self.log('train/d_accuracy_real', real_detection_accuracy,
+                 on_epoch=True, prog_bar=True)
         return d_loss
 
     def training_step(self, batch, batch_idx, optimizer_idx):
