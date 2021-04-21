@@ -1,7 +1,10 @@
+from argparse import Namespace
 import wandb
 import os
 import subprocess
 import random
+from torch.backends import cudnn
+from dotenv import load_dotenv
 
 
 def get_wandb_api_key():
@@ -28,7 +31,7 @@ def try_wandb_login():
         return False
 
 
-WANDB_PROJECT_NAME = "genart-spike"
+WANDB_PROJECT_NAME = "blubber"
 WANDB_TEAM_NAME = "hpi-genart"
 
 
@@ -54,3 +57,17 @@ def randomly_flip_labels(labels, p: float = 0.05):
     # flip chosen labels
     labels[indices_to_flip] = 1 - labels[indices_to_flip]
     return labels
+
+
+def before_run(config: Namespace):
+    print(f"Results will be saved to {config.results_dir}")
+    os.makedirs(config.results_dir, exist_ok=True)
+
+    # activate options to speed up training
+    cudnn.enabled = True
+    cudnn.benchmark = True
+
+    if config.no_wandb:
+        os.environ["WANDB_MODE"] = "dryrun"
+
+    load_dotenv()
