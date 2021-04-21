@@ -71,8 +71,8 @@ class conditionalGAN(pl.LightningModule):
         if features is None:
             features = self.example_feature_array.type_as(z)
         generated_images = self.generator(z, features)
-        # Do this step to also show the discriminator in yTorch-Lightnings automatic model summary
-        dicriminator_decision = self.discriminator(generated_images, features)
+        # Do this step to also show the discriminator in PyTorch-Lightning's automatic model summary
+        discriminator_decision = self.discriminator(generated_images, features)
         return generated_images
 
     def adversarial_loss(self, y_hat, y):
