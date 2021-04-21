@@ -4,11 +4,9 @@ from torch import nn
 import torchvision
 import torch.nn.functional as F
 
-from deep_convolutional_model import Generator, Discriminator
-from helpers import randomly_flip_labels
-from naive_model import NaiveGenerator, NaiveDiscriminator
+from gan.conditional_dc_gan import Generator, Discriminator
+from common.helpers import randomly_flip_labels
 import wandb
-from optimizers import ExtraAdam
 
 
 class conditionalGAN(pl.LightningModule):

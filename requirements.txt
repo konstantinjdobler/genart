@@ -4,6 +4,7 @@ matplotlib
 pandas
 numpy
 torch
+torchvision
 pytorch-lightning
 wandb
 python-dotenv    

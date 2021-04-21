@@ -1,17 +1,22 @@
-import argparse
-from datetime import datetime
-import os
 from pathlib import Path
+import os
+import sys
 
+from os.path import dirname, join, abspath
+sys.path.insert(0, abspath(join(dirname(__file__), '..')))
+
+from datetime import datetime
+import argparse
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from torch.backends import cudnn
-from data_loading import WikiArtEmotionsDataModule
-from helpers import WANDB_PROJECT_NAME, push_file_to_wandb, start_wandb_logging
-
-from models import conditionalGAN
+from common.data_loading import WikiArtEmotionsDataModule
+from common.helpers import WANDB_PROJECT_NAME, push_file_to_wandb, start_wandb_logging
+from gan.outer_gan import conditionalGAN
 import wandb
+
+
 
 parser = argparse.ArgumentParser("Parsing training arguments")
 
@@ -74,6 +79,7 @@ if __name__ == '__main__':
 
     if config.no_wandb:
         os.environ["WANDB_MODE"] = "dryrun"
+
     from dotenv import load_dotenv
     load_dotenv()
     start_wandb_logging(config, model, project=WANDB_PROJECT_NAME)
