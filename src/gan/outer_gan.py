@@ -140,9 +140,9 @@ class conditionalGAN(pl.LightningModule):
         self.log('train/d_loss', d_loss, on_epoch=True,
                  on_step=True, prog_bar=True)
         self.log('train/d_accuracy_fake', fake_detection_accuracy,
-                 on_epoch=True, prog_bar=True)
+                 on_step=False, on_epoch=True, prog_bar=True)
         self.log('train/d_accuracy_real', real_detection_accuracy,
-                 on_epoch=True, prog_bar=True)
+                 on_step=False, on_epoch=True, prog_bar=True)
         return d_loss
 
     def training_step(self, batch, batch_idx, optimizer_idx):
