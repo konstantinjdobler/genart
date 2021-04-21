@@ -1,8 +1,8 @@
-import os
-import sys
+# Fix imports and prevent formatting
+import sys  # nopep8
+from os.path import dirname, join, abspath  # nopep8
+sys.path.insert(0, abspath(join(dirname(__file__), '..')))  # nopep8
 
-from os.path import dirname, join, abspath
-sys.path.insert(0, abspath(join(dirname(__file__), '..')))
 
 import wandb
 from gan.outer_gan import conditionalGAN
@@ -12,8 +12,6 @@ from common.argparser import get_training_parser, parse_config
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 import pytorch_lightning as pl
-from datetime import datetime
-from pathlib import Path
 
 
 if __name__ == '__main__':
@@ -28,7 +26,8 @@ if __name__ == '__main__':
         config.data_dir, config.batch_size, config.workers, config.image_resizing, fast_debug=config.fast_debug)
     model = conditionalGAN(*dm.size(), lr=config.lr,
                            batch_size=config.batch_size, latent_dim=config.latent_dim,
-                           num_features=config.num_features, label_flipping_p=config.label_flipping_p)
+                           num_features=config.num_features, label_flipping_p=config.label_flipping_p,
+                           generator_key=config.generator_type, discriminator_key=config.discriminator_type)
 
     start_wandb_logging(config, model, project=WANDB_PROJECT_NAME)
     logger = WandbLogger(project=WANDB_PROJECT_NAME, experiment=wandb.run)

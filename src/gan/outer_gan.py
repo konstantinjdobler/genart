@@ -8,6 +8,15 @@ from gan.conditional_dc_gan import cDCGenerator, cDCDiscriminator, cDCGeneratorS
 from common.helpers import randomly_flip_labels
 import wandb
 
+generator_dict = {
+    'cdc-smoothed': cDCGeneratorSmoothed,
+    'cdc': cDCGenerator
+}
+
+discriminator_dict = {
+    'cdc': cDCDiscriminator
+}
+
 
 class conditionalGAN(pl.LightningModule):
 
@@ -24,6 +33,8 @@ class conditionalGAN(pl.LightningModule):
         b1=0.5,
         b2=0.99,
         condition=True,
+        generator_key=list(generator_dict.keys())[0],
+        discriminator_key=list(discriminator_dict.keys())[0],
         ** kwargs
     ):
         super().__init__()
@@ -32,9 +43,9 @@ class conditionalGAN(pl.LightningModule):
         # networks
         data_shape = (channels, width, height)
         self.generator = self._get_generator(
-            data_shape, GeneratorClass=cDCGeneratorSmoothed)
+            data_shape, GeneratorClass=generator_dict[generator_key])
         self.discriminator = self._get_discriminator(
-            data_shape, DiscriminatorClass=cDCDiscriminator)
+            data_shape, DiscriminatorClass=discriminator_dict[discriminator_key])
 
         self.validation_z = torch.randn(8, self.hparams.latent_dim, 1, 1)
 
@@ -44,12 +55,15 @@ class conditionalGAN(pl.LightningModule):
             8, self.hparams.num_features)
 
     def _get_generator(self, data_shape, GeneratorClass) -> nn.Module:
+        print("Using generator", GeneratorClass.__name__)
         generator = GeneratorClass(latent_dim=self.hparams.latent_dim,
                                    num_features=self.hparams.num_features, img_shape=data_shape)
         generator.apply(self._weights_init)
         return generator
 
     def _get_discriminator(self, data_shape, DiscriminatorClass) -> nn.Module:
+        print("Using generator", DiscriminatorClass.__name__)
+
         discriminator = DiscriminatorClass(
             num_features=self.hparams.num_features, img_shape=data_shape)
         discriminator.apply(self._weights_init)

@@ -1,5 +1,6 @@
 import argparse
 from datetime import datetime
+from gan.outer_gan import generator_dict, discriminator_dict
 
 
 def get_training_parser():
@@ -13,6 +14,10 @@ def get_training_parser():
                         help="use cpu instead of gpu")
     parser.add_argument('--workers', '-w', type=int, default=4)
     ##################### ------------------ #####################
+    parser.add_argument('--generator-type', '--gen', default=list(generator_dict.keys())[0],
+                        choices=list(generator_dict.keys()), help="Specify the type of generator that will be used.")
+    parser.add_argument('--discriminator-type', '--disc', default=list(discriminator_dict.keys())[0],
+                        choices=list(discriminator_dict.keys()), help="Specify the type of discriminator that will be used.")
     parser.add_argument('--image-resizing', '-i', type=int, default=256)
     parser.add_argument('--lr', type=float, default=0.00001)
     parser.add_argument('--epochs', '-e', type=int, default=20)
