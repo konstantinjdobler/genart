@@ -9,7 +9,7 @@ Put the dataset into a root-level `data` folder.
 
 ## Training
 
-For example: `python src/train.py -d ./data/wikiart-emotions --no-wandb --cpu -i 64 -b 8 -w 8`
+For example: `python src/gan/train.py -d ./data/wikiart-emotions --no-wandb --cpu -i 64 -b 8 -w 8`
 
 To activate Weights & Biases, either put `WANDB_API_KEY=....` into a root-level `.env` file or supply it via `export WANDB_API_KEY=....` in the command line. Also, omit `--no-wandb` from the run command.
 
