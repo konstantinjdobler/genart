@@ -1,11 +1,17 @@
-wheel
-Cython
-matplotlib
-pandas
-numpy
-torch
-torchvision
-pytorch-lightning
-wandb
-python-dotenv    
-opencv-python
+# received by pipreqs
+pytorch_lightning==1.2.8
+torchvision==0.9.1
+torch==1.8.1
+wandb==0.10.27
+opencv_python==4.5.1.48
+tqdm==4.51.0
+numpy==1.20.2
+Pillow==8.2.0
+python-dotenv==0.17.0
+
+# added manually
+pandas==1.2.4
+
+# still required?
+wheel==0.35.1
+Cython==0.29.23
