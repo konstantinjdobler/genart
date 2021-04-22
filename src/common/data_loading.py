@@ -33,7 +33,8 @@ class WikiArtEmotionsDataModule(pl.LightningDataModule):
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
             transforms.Resize(self.image_size),
-            transforms.RandomCrop(self.image_size)
+            transforms.RandomCrop(self.image_size),
+            transforms.RandomHorizontalFlip()
         ])
 
         # self.dims is returned when you call dm.size()
