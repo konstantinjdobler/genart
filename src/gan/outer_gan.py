@@ -35,8 +35,8 @@ class conditionalGAN(pl.LightningModule):
         b1=0.5,
         b2=0.99,
         condition=True,
-        generator_key=list(generator_dict.keys())[0],
-        discriminator_key=list(discriminator_dict.keys())[0],
+        generator_type=list(generator_dict.keys())[0],
+        discriminator_type=list(discriminator_dict.keys())[0],
         ** kwargs
     ):
         super().__init__()
@@ -45,9 +45,9 @@ class conditionalGAN(pl.LightningModule):
         # networks
         data_shape = (channels, width, height)
         self.generator = self._get_generator(
-            data_shape, GeneratorClass=generator_dict[generator_key])
+            data_shape, GeneratorClass=generator_dict[generator_type])
         self.discriminator = self._get_discriminator(
-            data_shape, DiscriminatorClass=discriminator_dict[discriminator_key])
+            data_shape, DiscriminatorClass=discriminator_dict[discriminator_type])
 
         self.validation_z = torch.randn(8, self.hparams.latent_dim, 1, 1)
 

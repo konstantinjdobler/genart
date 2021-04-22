@@ -28,7 +28,7 @@ if __name__ == '__main__':
                            batch_size=config.batch_size, latent_dim=config.latent_dim,
                            num_features=config.num_features, label_flipping_p=config.label_flipping_p,
                            label_smoothing=config.label_smoothing,
-                           generator_key=config.generator_type, discriminator_key=config.discriminator_type)
+                           generator_type=config.generator_type, discriminator_type=config.discriminator_type)
 
     start_wandb_logging(config, model, project=WANDB_PROJECT_NAME)
     logger = WandbLogger(project=WANDB_PROJECT_NAME, experiment=wandb.run)
