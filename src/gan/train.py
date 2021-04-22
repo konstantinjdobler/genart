@@ -30,6 +30,9 @@ if __name__ == '__main__':
                            label_smoothing=config.label_smoothing,
                            generator_type=config.generator_type, discriminator_type=config.discriminator_type).set_argparse_config(config)
 
+    if config.use_checkpoint:
+        model = conditionalGAN.load_from_checkpoint(
+            config.use_checkpoint).set_argparse_config(config)
     start_wandb_logging(config, model, project=WANDB_PROJECT_NAME)
     logger = WandbLogger(project=WANDB_PROJECT_NAME, experiment=wandb.run)
     checkpoint_callback = ModelCheckpoint(
