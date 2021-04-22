@@ -1,5 +1,5 @@
 import wandb
-from common.helpers import randomly_flip_labels
+from common.helpers import push_file_to_wandb, randomly_flip_labels
 from gan.conditional_dc_gan import cDCGenerator, cDCDiscriminator, cDCGeneratorSmoothed
 import torch.nn.functional as F
 import torchvision
@@ -55,6 +55,13 @@ class conditionalGAN(pl.LightningModule):
             8, self.hparams.latent_dim, 1, 1)
         self.example_feature_array = torch.zeros(
             8, self.hparams.num_features)
+        # shift to [-1,1] value range
+        self.example_feature_array[self.example_feature_array == 0] = -1
+
+    def set_argparse_config(self, config):
+        '''Call before training start'''
+        self.argparse_config = config
+        return self
 
     def _get_generator(self, data_shape, GeneratorClass) -> nn.Module:
         print("Using generator", GeneratorClass.__name__)
@@ -160,7 +167,6 @@ class conditionalGAN(pl.LightningModule):
         b1 = self.hparams.b1
         b2 = self.hparams.b2
 
-        # This is supposed to be better for GANs than Adam
         opt_g = torch.optim.Adam(
             self.generator.parameters(), lr=lr, betas=(b1, b2))
         opt_d = torch.optim.Adam(
@@ -175,3 +181,6 @@ class conditionalGAN(pl.LightningModule):
         grid = torchvision.utils.make_grid(sample_imgs[:6])
         self.logger.experiment.log({'epoch_generated_images': [
             wandb.Image(grid, caption=f"Samples epoch {self.current_epoch}")]}, commit=False)
+
+        # Save preliminary model to wandb in case of crash
+        push_file_to_wandb(f"{self.argparse_config.results_dir}/last.ckpt")

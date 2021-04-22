@@ -28,15 +28,14 @@ if __name__ == '__main__':
                            batch_size=config.batch_size, latent_dim=config.latent_dim,
                            num_features=config.num_features, label_flipping_p=config.label_flipping_p,
                            label_smoothing=config.label_smoothing,
-                           generator_type=config.generator_type, discriminator_type=config.discriminator_type)
+                           generator_type=config.generator_type, discriminator_type=config.discriminator_type).set_argparse_config(config)
 
     start_wandb_logging(config, model, project=WANDB_PROJECT_NAME)
     logger = WandbLogger(project=WANDB_PROJECT_NAME, experiment=wandb.run)
     checkpoint_callback = ModelCheckpoint(
-        dirpath=config.results_dir)
+        dirpath=config.results_dir, save_last=True)
     trainer = pl.Trainer.from_argparse_args(config, gpus=config.gpus, max_epochs=config.epochs,
                                             progress_bar_refresh_rate=1, logger=logger, callbacks=[checkpoint_callback])
 
     trainer.fit(model, dm)
     push_file_to_wandb(f"{config.results_dir}/*.ckpt")
-    wandb.finish()

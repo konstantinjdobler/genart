@@ -19,11 +19,11 @@ def get_training_parser():
     parser.add_argument('--discriminator-type', '--disc', default=list(discriminator_dict.keys())[0],
                         choices=list(discriminator_dict.keys()), help="Specify the type of discriminator that will be used.")
     parser.add_argument('--image-resizing', '-i', type=int, default=256)
-    parser.add_argument('--lr', type=float, default=0.00001)
+    parser.add_argument('--lr', type=float, default=0.0002)
     parser.add_argument('--epochs', '-e', type=int, default=20)
     parser.add_argument('--batch-size', '-b', type=int, default=4)
     parser.add_argument('--num-features', '-f', type=int, default=60)
-    parser.add_argument('--latent-dim', '-l', type=int, default=200)
+    parser.add_argument('--latent-dim', '-l', type=int, default=100)
     parser.add_argument('--label-flipping-p', '--lfp', type=float, default=0,
                         help="Probability for label flipping. Set to zero to disable.")
     parser.add_argument('--label-smoothing', '--ls', type=float, default=1.0,
