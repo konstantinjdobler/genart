@@ -1,12 +1,22 @@
-import pytorch_lightning as pl
-import torch
-from torch import nn
-import torchvision
-import torch.nn.functional as F
-
-from gan.conditional_dc_gan import Generator, Discriminator
-from common.helpers import randomly_flip_labels
 import wandb
+from common.helpers import push_file_to_wandb, randomly_flip_labels
+from gan.conditional_dc_gan import cDCGenerator, cDCDiscriminator, cDCGeneratorSmoothed
+import torch.nn.functional as F
+import torchvision
+from torch import nn
+import torch
+import pytorch_lightning as pl
+from pytorch_lightning.metrics.functional import accuracy
+
+
+generator_dict = {
+    'cdc-smoothed': cDCGeneratorSmoothed,
+    'cdc': cDCGenerator
+}
+
+discriminator_dict = {
+    'cdc': cDCDiscriminator
+}
 
 
 class conditionalGAN(pl.LightningModule):
@@ -21,9 +31,12 @@ class conditionalGAN(pl.LightningModule):
         lr,
         batch_size,
         label_flipping_p,
+        label_smoothing,
         b1=0.5,
         b2=0.99,
         condition=True,
+        generator_type=list(generator_dict.keys())[0],
+        discriminator_type=list(discriminator_dict.keys())[0],
         ** kwargs
     ):
         super().__init__()
@@ -32,9 +45,9 @@ class conditionalGAN(pl.LightningModule):
         # networks
         data_shape = (channels, width, height)
         self.generator = self._get_generator(
-            data_shape, GeneratorClass=Generator)
+            data_shape, GeneratorClass=generator_dict[generator_type])
         self.discriminator = self._get_discriminator(
-            data_shape, DiscriminatorClass=Discriminator)
+            data_shape, DiscriminatorClass=discriminator_dict[discriminator_type])
 
         self.validation_z = torch.randn(8, self.hparams.latent_dim, 1, 1)
 
@@ -42,14 +55,24 @@ class conditionalGAN(pl.LightningModule):
             8, self.hparams.latent_dim, 1, 1)
         self.example_feature_array = torch.zeros(
             8, self.hparams.num_features)
+        # shift to [-1,1] value range
+        self.example_feature_array[self.example_feature_array == 0] = -1
+
+    def set_argparse_config(self, config):
+        '''Call before training start'''
+        self.argparse_config = config
+        return self
 
     def _get_generator(self, data_shape, GeneratorClass) -> nn.Module:
+        print("Using generator", GeneratorClass.__name__)
         generator = GeneratorClass(latent_dim=self.hparams.latent_dim,
                                    num_features=self.hparams.num_features, img_shape=data_shape)
         generator.apply(self._weights_init)
         return generator
 
     def _get_discriminator(self, data_shape, DiscriminatorClass) -> nn.Module:
+        print("Using discriminator", DiscriminatorClass.__name__)
+
         discriminator = DiscriminatorClass(
             num_features=self.hparams.num_features, img_shape=data_shape)
         discriminator.apply(self._weights_init)
@@ -86,7 +109,6 @@ class conditionalGAN(pl.LightningModule):
         # put on GPU because we created this tensor inside training_loop
         valid_ground_truth = torch.ones(
             real_imgs.size(0), 1).type_as(real_imgs)
-        valid_ground_truth = valid_ground_truth
 
         # adversarial loss is binary cross-entropy
         g_loss = self.adversarial_loss(
@@ -102,21 +124,32 @@ class conditionalGAN(pl.LightningModule):
 
         # ground truth result (ie: all fake)
         # how well can it label as real?
-        valid_ground_truth = randomly_flip_labels(
-            torch.ones(real_imgs.size(0), 1), p=self.hparams.label_flipping_p).type_as(real_imgs)
+        real_ground_truth = torch.ones(real_imgs.size(0), 1).uniform_(
+            self.hparams.label_smoothing, 1)  # label smoothing, if set to 1 nothing changes here
+        real_ground_truth = randomly_flip_labels(
+            real_ground_truth, p=self.hparams.label_flipping_p).type_as(real_imgs)
         fake_ground_truth = randomly_flip_labels(
             torch.zeros(real_imgs.size(0), 1), p=self.hparams.label_flipping_p).type_as(real_imgs)
 
-        real_loss = self.adversarial_loss(
-            self.discriminator(real_imgs, features), valid_ground_truth)
+        real_predictions = self.discriminator(real_imgs, features)
+        real_loss = self.adversarial_loss(real_predictions, real_ground_truth)
+        real_detection_accuracy = accuracy(
+            real_predictions, torch.ones(real_imgs.size(0), 1, dtype=int, device=self.device))
 
-        fake_loss = self.adversarial_loss(
-            self.discriminator(self.generator(z, features).detach(), features), fake_ground_truth)
+        fake_predictions = self.discriminator(
+            self.generator(z, features).detach(), features)
+        fake_loss = self.adversarial_loss(fake_predictions, fake_ground_truth)
+        fake_detection_accuracy = accuracy(
+            fake_predictions, torch.zeros(real_imgs.size(0), 1, dtype=int, device=self.device))
 
         # discriminator loss is the average of these
         d_loss = (real_loss + fake_loss) / 2
         self.log('train/d_loss', d_loss, on_epoch=True,
                  on_step=True, prog_bar=True)
+        self.log('train/d_accuracy_fake', fake_detection_accuracy,
+                 on_step=False, on_epoch=True, prog_bar=True)
+        self.log('train/d_accuracy_real', real_detection_accuracy,
+                 on_step=False, on_epoch=True, prog_bar=True)
         return d_loss
 
     def training_step(self, batch, batch_idx, optimizer_idx):
@@ -134,7 +167,6 @@ class conditionalGAN(pl.LightningModule):
         b1 = self.hparams.b1
         b2 = self.hparams.b2
 
-        # This is supposed to be better for GANs than Adam
         opt_g = torch.optim.Adam(
             self.generator.parameters(), lr=lr, betas=(b1, b2))
         opt_d = torch.optim.Adam(
@@ -149,3 +181,6 @@ class conditionalGAN(pl.LightningModule):
         grid = torchvision.utils.make_grid(sample_imgs[:6])
         self.logger.experiment.log({'epoch_generated_images': [
             wandb.Image(grid, caption=f"Samples epoch {self.current_epoch}")]}, commit=False)
+
+        # Save preliminary model to wandb in case of crash
+        push_file_to_wandb(f"{self.argparse_config.results_dir}/last.ckpt")

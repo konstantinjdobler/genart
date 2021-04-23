@@ -33,7 +33,8 @@ class WikiArtEmotionsDataModule(pl.LightningDataModule):
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
             transforms.Resize(self.image_size),
-            transforms.RandomCrop(self.image_size)
+            transforms.RandomCrop(self.image_size),
+            transforms.RandomHorizontalFlip()
         ])
 
         # self.dims is returned when you call dm.size()
@@ -64,10 +65,14 @@ class AnnotatedImageDataset(Dataset):
         with open(annotation_file, 'r') as f:
             data = f.read()
         data = data.strip().split('\n')
+
+        # Images get normalized to [-1,1], so we want our features to be in the same value range
+        annotation_map = {"1": 1.0, "0": -1.0}
+
         self.image_files = [
             {
                 'path': Path(image_root) / (entry.split('\t')[0] + ".jpg"),
-                'annotations': torch.FloatTensor(list(map(float, entry.split('\t')[12:])))
+                'annotations': torch.FloatTensor(list(map(annotation_map.get, entry.split('\t')[12:])))
             } for entry in data[1:]
         ]
         if fast_debug:
@@ -86,7 +91,7 @@ class AnnotatedImageDataset(Dataset):
 
 
 class CelebAImageFeatureFolder(torchvision.datasets.ImageFolder):
-    def __init__(self, image_root, landmark_file, transform):
+    def __init__(self, image_root, landmark_file, transform, fast_debug):
         super(CelebAImageFeatureFolder, self).__init__(
             root=image_root, transform=transform)
 
@@ -95,6 +100,10 @@ class CelebAImageFeatureFolder(torchvision.datasets.ImageFolder):
         data = data.strip().split('\n')
         self.attrs = torch.FloatTensor(
             [list(map(float, line.split()[1:])) for line in data[2:]])
+        if fast_debug:
+            self.attrs = self.attrs[:20]
+            self.imgs = self.imgs[:20]
+            self.samples = self.imgs
 
     def __getitem__(self, index):
         img, _ = super().__getitem__(index)
@@ -135,7 +144,7 @@ class CelebADataModule(pl.LightningDataModule):
         # self.num_classes = 10
 
     def prepare_data(self):
-        self.train_set = AnnotatedImageDataset(str(self.image_subfolder), str(
+        self.train_set = CelebAImageFeatureFolder(str(self.image_subfolder), str(
             self.annotation_path), transform=self.transform, fast_debug=self.fast_debug)
 
     def train_dataloader(self):
