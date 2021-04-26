@@ -6,7 +6,7 @@ sys.path.insert(0, abspath(join(dirname(__file__), '..')))  # nopep8
 
 import wandb
 from gan.outer_gan import conditionalGAN
-from common.helpers import WANDB_PROJECT_NAME, push_file_to_wandb, start_wandb_logging, before_run
+from common.helpers import push_file_to_wandb, start_wandb_logging, before_run
 from common.data_loading import CelebADataModule, WikiArtEmotionsDataModule
 from common.argparser import get_training_parser, parse_config
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
@@ -33,8 +33,9 @@ if __name__ == '__main__':
     if config.use_checkpoint:
         model = conditionalGAN.load_from_checkpoint(
             config.use_checkpoint).set_argparse_config(config)
-    start_wandb_logging(config, model, project=WANDB_PROJECT_NAME)
-    logger = WandbLogger(project=WANDB_PROJECT_NAME, experiment=wandb.run)
+    start_wandb_logging(config, model, project=config.wandb_project_name)
+    logger = WandbLogger(project=config.wandb_project_name,
+                         experiment=wandb.run)
     checkpoint_callback = ModelCheckpoint(
         dirpath=config.results_dir, save_last=True)
     trainer = pl.Trainer.from_argparse_args(config, gpus=config.gpus, max_epochs=config.epochs,

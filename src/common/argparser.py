@@ -8,6 +8,9 @@ def get_training_parser():
 
     parser.add_argument('--data-dir', '-d', type=str,
                         default="./data/wikiart-emotions")
+    parser.add_argument('--image-folder', type=str,
+                        default="./data/wikiart-emotions/images")
+    parser.add_argument('--annotations-file', type=str)
     parser.add_argument('--gpus', type=int, nargs='+', default=-1,
                         help="specify gpus to use. default is to use all available")
     parser.add_argument('--cpu', action='store_true',
@@ -33,6 +36,8 @@ def get_training_parser():
     ###################### ------------------ #####################
     parser.add_argument('--results-dir', '-c', type=str,
                         default=f"./results/")
+    parser.add_argument('--wandb-project-name', '-wpn', type=str,
+                        help='Name of the project in wandb to log to', default='genart-spike')
     parser.add_argument('--training-name', '-n', type=str,
                         help='Name you want to use for this training run, will be used in '
                         'log and model saving.', default=datetime.now().strftime('%d-%m-%Y_%H_%M_%S'))
@@ -53,8 +58,8 @@ def parse_config(parser: argparse.ArgumentParser):
         config.gpus = None
     if config.fast_debug is True:
         config.batch_size = 4
-        config.epochs = 4
-        config.no_wandb = True
+        config.epochs = 10
+        # config.no_wandb = True
     config.results_dir = config.results_dir + config.training_name
 
     return config

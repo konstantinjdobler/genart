@@ -31,11 +31,11 @@ def try_wandb_login():
         return False
 
 
-WANDB_PROJECT_NAME = "genart-spike"
+# WANDB_PROJECT_NAME = "genart-spike"
 WANDB_TEAM_NAME = "hpi-genart"
 
 
-def start_wandb_logging(cfg, model, project=WANDB_PROJECT_NAME):
+def start_wandb_logging(cfg, model, project):
     if try_wandb_login():
         if cfg.training_name is not None:
             wandb.init(project=project, entity=WANDB_TEAM_NAME,

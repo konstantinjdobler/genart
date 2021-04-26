@@ -1,12 +1,15 @@
 from pathlib import Path
+from typing import Callable, List, Optional
 import torch
 import pytorch_lightning as pl
+from torch.utils import data
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader,  Dataset
 from PIL import Image
 import os
-
+from sklearn.model_selection import train_test_split
 import torchvision
+import pandas as pd
 
 
 class WikiArtEmotionsDataModule(pl.LightningDataModule):
@@ -55,6 +58,102 @@ class WikiArtEmotionsDataModule(pl.LightningDataModule):
 
     # def test_dataloader(self):
     #     return DataLoader(self.mnist_test, batch_size=self.batch_size, num_workers=self.num_workers)
+
+
+# data_transforms = {
+#     "train": transforms.Compose([
+#         transforms.RandomResizedCrop(224),
+#         transforms.RandomHorizontalFlip(),
+#         transforms.ToTensor(),
+#         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+#     ]),
+#     "val": transforms.Compose([
+#         transforms.Resize(256),
+#         transforms.CenterCrop(224),
+#         transforms.ToTensor(),
+#         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+#     ]),
+# }
+
+ID_COLUMN = "ID"
+PATH_COLUMN = "_path"
+FilterColumnFunction = Callable[[str, int], bool]
+
+
+class WikiArtEmotionsDataModule2(pl.LightningDataModule):
+
+    def __init__(self, image_folder: str, annotations_file: str, resize_size: int, crop_size: int, batch_size: int, num_workers: int, filter_columns_function: Optional[FilterColumnFunction] = None, fast_debug: bool = False):
+        super().__init__()
+
+        self.image_folder = image_folder
+        self.annotations_file = annotations_file
+        df = pd.read_csv(self.annotations_file, "\t")
+
+        if filter_columns_function:
+            filtered_columns = [c for idx, c in enumerate(
+                df.columns) if filter_columns_function(c, idx) or c == ID_COLUMN]
+            df = df.filter(items=filtered_columns)
+
+        df[PATH_COLUMN] = df.apply(
+            lambda x: f"{image_folder}/{x[ID_COLUMN]}.jpg", axis=1)
+        self.df_train, self.df_val = train_test_split(df, train_size=0.8)
+
+        self.train_transforms = transforms.Compose([
+            transforms.RandomResizedCrop(crop_size),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])
+        self.val_transforms = transforms.Compose([
+            transforms.Resize(resize_size),
+            transforms.CenterCrop(crop_size),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])
+
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.fast_debug = fast_debug
+
+    def prepare_data(self):
+        self.train_data = AnnotatedImageDataset2(
+            data=self.df_train, transforms=self.train_transforms, fast_debug=self.fast_debug)
+        self.val_data = AnnotatedImageDataset2(
+            data=self.df_val, transforms=self.val_transforms, fast_debug=self.fast_debug)
+
+    def train_dataloader(self):
+        return DataLoader(self.train_data, batch_size=self.batch_size, num_workers=self.num_workers, drop_last=True, shuffle=True)
+
+    def val_dataloader(self):
+        return DataLoader(self.val_data, batch_size=self.batch_size, num_workers=self.num_workers)
+
+    # def test_dataloader(self):
+    #     return DataLoader(self.test_data, batch_size=self.batch_size, num_workers=self.num_workers)
+
+
+class AnnotatedImageDataset2(Dataset):
+
+    def __init__(self, data: pd.DataFrame, transforms, fast_debug: bool = False, meta_data_columns: List[str] = [ID_COLUMN, PATH_COLUMN]):
+        super().__init__()
+        self.data = data
+        if fast_debug:
+            self.data = data[:20]
+        self.meta_data = self.data[meta_data_columns]
+        self.labels = self.data.drop(meta_data_columns, axis=1)
+        self.transforms = transforms
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, index):
+        img_data = self.meta_data.iloc[index]
+
+        img = Image.open(img_data["_path"])
+        if self.transforms:
+            img = self.transforms(img)
+        img_labels = self.labels.iloc[index]
+
+        return img, img_labels.values
 
 
 class AnnotatedImageDataset(Dataset):
