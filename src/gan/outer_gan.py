@@ -8,14 +8,19 @@ import torch
 import pytorch_lightning as pl
 from pytorch_lightning.metrics.functional import accuracy
 
+from gan.unconditional_dc_gan import DCDiscriminator, DCGenerator, DCGeneratorSmoothed
+
 
 generator_dict = {
     'cdc-smoothed': cDCGeneratorSmoothed,
-    'cdc': cDCGenerator
+    'cdc': cDCGenerator,
+    'dc-smoothed': DCGeneratorSmoothed,
+    'dc': DCGenerator
 }
 
 discriminator_dict = {
-    'cdc': cDCDiscriminator
+    'cdc': cDCDiscriminator,
+    'dc': DCDiscriminator
 }
 
 
