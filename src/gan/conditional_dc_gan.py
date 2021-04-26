@@ -20,7 +20,7 @@ class ConvTranspose2dBlock(nn.Module):
             padding = upsampling_factor // 2
         if smoothed and upsampling_factor:
             # From https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/190#issuecomment-358546675
-            self.conv_layer = nn.Sequential(nn.Upsample(scale_factor=upsampling_factor, mode='bilinear'),
+            self.conv_layer = nn.Sequential(nn.Upsample(scale_factor=upsampling_factor, mode='nearest'),
                                             nn.ReflectionPad2d(1),
                                             nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=0))
         else:
