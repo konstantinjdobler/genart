@@ -59,7 +59,7 @@ def parse_config(parser: argparse.ArgumentParser):
     if config.fast_debug is True:
         config.batch_size = 4
         config.epochs = 10
-        # config.no_wandb = True
+        config.no_wandb = True
     config.results_dir = config.results_dir + config.training_name
 
     return config
