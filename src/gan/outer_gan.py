@@ -106,14 +106,13 @@ class conditionalGAN(pl.LightningModule):
 
     def _generator_step(self, real_imgs, features):
         '''Measure generators's ability to generate samples that can fool the discriminator'''
-
-        z = torch.randn(
-            real_imgs.shape[0], self.hparams.latent_dim, 1, 1).type_as(real_imgs)
+        batch_size = real_imgs.shape[0]
+        z = torch.randn(batch_size, self.hparams.latent_dim,
+                        1, 1).type_as(real_imgs)
 
         # ground truth result (ie: all fake)
         # put on GPU because we created this tensor inside training_loop
-        valid_ground_truth = torch.ones(
-            real_imgs.size(0), 1).type_as(real_imgs)
+        valid_ground_truth = torch.ones(batch_size, 1).type_as(real_imgs)
 
         # adversarial loss is binary cross-entropy
         g_loss = self.adversarial_loss(
@@ -124,28 +123,35 @@ class conditionalGAN(pl.LightningModule):
 
     def _discriminator_step(self, real_imgs, features):
         '''Measure discriminator's ability to differntiate between real and generated samples'''
-        z = torch.randn(
-            real_imgs.shape[0], self.hparams.latent_dim, 1, 1).type_as(real_imgs)
+        batch_size = real_imgs.shape[0]
 
-        # ground truth result (ie: all fake)
-        # how well can it label as real?
-        real_ground_truth = torch.ones(real_imgs.size(0), 1).uniform_(
-            self.hparams.label_smoothing, 1)  # label smoothing, if set to 1 nothing changes here
+        z = torch.randn(batch_size, self.hparams.latent_dim,
+                        1, 1).type_as(real_imgs)
+
+        real_ground_truth_standard, fake_ground_truth_standard = torch.ones(
+            batch_size, 1).type_as(real_imgs), torch.zeros(batch_size, 1).type_as(real_imgs)
+
+        # Apply label smoothing if specified
+        real_ground_truth = real_ground_truth_standard.uniform_(
+            self.hparams.label_smoothing, 1)
+        # Apply label flipping if specified
         real_ground_truth = randomly_flip_labels(
-            real_ground_truth, p=self.hparams.label_flipping_p).type_as(real_imgs)
+            real_ground_truth, p=self.hparams.label_flipping_p)
         fake_ground_truth = randomly_flip_labels(
-            torch.zeros(real_imgs.size(0), 1), p=self.hparams.label_flipping_p).type_as(real_imgs)
+            fake_ground_truth_standard, p=self.hparams.label_flipping_p)
 
+        # Measure discriminator ability to detect real images
         real_predictions = self.discriminator(real_imgs, features)
         real_loss = self.adversarial_loss(real_predictions, real_ground_truth)
         real_detection_accuracy = accuracy(
-            real_predictions, torch.ones(real_imgs.size(0), 1, dtype=int, device=self.device))
+            real_predictions, real_ground_truth_standard.int())
 
+        # Measure discriminator ability to detect fake images
         fake_predictions = self.discriminator(
             self.generator(z, features).detach(), features)
         fake_loss = self.adversarial_loss(fake_predictions, fake_ground_truth)
         fake_detection_accuracy = accuracy(
-            fake_predictions, torch.zeros(real_imgs.size(0), 1, dtype=int, device=self.device))
+            fake_predictions, fake_ground_truth_standard.int())
 
         # discriminator loss is the average of these
         d_loss = (real_loss + fake_loss) / 2
