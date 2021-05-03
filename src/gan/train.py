@@ -7,7 +7,7 @@ sys.path.insert(0, abspath(join(dirname(__file__), '..')))  # nopep8
 import wandb
 from gan.outer_gan import conditionalGAN
 from common.helpers import push_file_to_wandb, start_wandb_logging, before_run
-from common.data_loading import CelebADataModule, WikiArtEmotionsDataModule
+from common.data_loading import WikiArtEmotionsDataModule
 from common.argparser import get_training_parser, parse_config
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger

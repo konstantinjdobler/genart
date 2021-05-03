@@ -1,9 +1,6 @@
 # received by pipreqs
 pytorch_lightning==1.2.8
-torchvision==0.9.1
-torch==1.8.1
 wandb==0.10.27
-opencv_python==4.5.1.48
 tqdm==4.51.0
 numpy==1.20.2
 Pillow==8.2.0
