@@ -204,6 +204,8 @@ class GAN(pl.LightningModule):
 
 
 class WGAN_GP(GAN):
+    '''Based on https://github.com/nocotan/pytorch-lightning-gans/blob/master/models/wgan_gp.py'''
+
     def adversarial_loss(self, predictions, should_be_real=True):
         '''The discriminator should learn to assign high values (>0, close to 1) to real images and low values (<0, clos to -1) to fake images'''
         return -torch.mean(predictions) if should_be_real else torch.mean(predictions)
@@ -295,4 +297,13 @@ class WGAN_GP(GAN):
         return d_loss
 
     def configure_optimizers(self):
-        return super().configure_optimizers()
+        """Train discriminator more than generator"""
+        lr = self.hparams.lr
+        b1 = self.hparams.b1
+        b2 = self.hparams.b2
+
+        opt_g = torch.optim.Adam(
+            self.generator.parameters(), lr=lr, betas=(b1, b2))
+        opt_d = torch.optim.Adam(
+            self.discriminator.parameters(), lr=lr, betas=(b1, b2))
+        return {'optimizer': opt_d, 'frequency': 5}, {'optimizer': opt_g, 'frequency': 1}
