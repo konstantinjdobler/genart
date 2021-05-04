@@ -285,6 +285,7 @@ class WGAN_GP(GAN):
         # discriminator loss is the average of these
         gp = self.compute_gradient_penalty(
             real_imgs.data, fake_imgs.data, features)
+        # TODO: fix mafic value
         d_loss = real_loss + fake_loss + 10 * gp
         self.log('train/d_loss', d_loss, on_epoch=True,
                  on_step=True, prog_bar=True)
@@ -298,6 +299,7 @@ class WGAN_GP(GAN):
 
     def configure_optimizers(self):
         """Train discriminator more than generator"""
+        # TODO: fix magic values
         lr = self.hparams.lr
         b1 = self.hparams.b1
         b2 = self.hparams.b2
