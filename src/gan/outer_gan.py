@@ -227,7 +227,7 @@ class WGAN_GP(GAN):
     def compute_gradient_penalty(self, real_samples, fake_samples, features):
         """Calculates the gradient penalty loss for WGAN GP"""
         # Features are hacked, needs more thought
-        
+
         # Random weight term for interpolation between real and fake samples
         alpha = torch.Tensor(np.random.random(
             (real_samples.size(0), 1, 1, 1))).to(self.device)
@@ -258,7 +258,7 @@ class WGAN_GP(GAN):
         return out
 
     def _discriminator_step(self, real_imgs, features):
-        '''Measure discriminator's ability to differntiate between real and generated samples'''
+        '''Measure discriminator's ability to differentiate between real and generated samples'''
         batch_size = real_imgs.shape[0]
 
         z = torch.randn(batch_size, self.hparams.latent_dim,
