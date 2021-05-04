@@ -1,14 +1,14 @@
 # Fix imports and prevent formatting
 import sys  # nopep8
 from os.path import dirname, join, abspath  # nopep8
-sys.path.insert(0, abspath(join(dirname(__file__), '..')))  # nopep8
+sys.path.insert(0, abspath(join(dirname(__file__), '../..')))  # nopep8
 
 
 import wandb
-from gan.outer_gan import conditionalGAN
-from common.helpers import push_file_to_wandb, start_wandb_logging, before_run
-from common.data_loading import WikiArtEmotionsDataModule
-from common.argparser import get_training_parser, parse_config
+from src.gan.outer_gan import GAN, WGAN_GP
+from src.common.helpers import push_file_to_wandb, start_wandb_logging, before_run
+from src.common.data_loading import WikiArtEmotionsDataModule
+from src.common.argparser import get_training_parser, parse_config
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 import pytorch_lightning as pl
@@ -24,14 +24,16 @@ if __name__ == '__main__':
     print("Loading Data")
     dm = WikiArtEmotionsDataModule(
         config.data_dir, config.batch_size, config.workers, config.image_resizing, fast_debug=config.fast_debug)
-    model = conditionalGAN(*dm.size(), lr=config.lr,
-                           batch_size=config.batch_size, latent_dim=config.latent_dim,
-                           num_features=config.num_features, label_flipping_p=config.label_flipping_p,
-                           label_smoothing=config.label_smoothing,
-                           generator_type=config.generator_type, discriminator_type=config.discriminator_type).set_argparse_config(config)
+
+    GANClass = WGAN_GP if config.wasserstein else GAN
+    model = GANClass(*dm.size(), lr=config.lr,
+                     batch_size=config.batch_size, latent_dim=config.latent_dim,
+                     num_features=config.num_features, label_flipping_p=config.label_flipping_p,
+                     label_smoothing=config.label_smoothing,
+                     generator_type=config.generator_type, discriminator_type=config.discriminator_type).set_argparse_config(config)
 
     if config.use_checkpoint:
-        model = conditionalGAN.load_from_checkpoint(
+        model = GANClass.load_from_checkpoint(
             config.use_checkpoint).set_argparse_config(config)
     start_wandb_logging(config, model, project=config.wandb_project_name)
     logger = WandbLogger(project=config.wandb_project_name,

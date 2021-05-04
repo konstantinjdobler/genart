@@ -1,6 +1,6 @@
 import argparse
 from datetime import datetime
-from gan.outer_gan import generator_dict, discriminator_dict
+from src.gan.outer_gan import generator_dict, discriminator_dict
 
 
 def get_training_parser():
@@ -33,6 +33,8 @@ def get_training_parser():
                         help="Probability for label flipping. Set to zero to disable.")
     parser.add_argument('--label-smoothing', '--ls', type=float, default=1.0,
                         help="Use label smoothing trick for discriminator. Argument determines how much labels are smoothed, 1 disables the trick.")
+    parser.add_argument('--wasserstein', action='store_true',
+                        help="Use Wasserstein-1 distance formulation instead of classic GAN")
     ###################### ------------------ #####################
     parser.add_argument('--results-dir', '-c', type=str,
                         default=f"./results/")

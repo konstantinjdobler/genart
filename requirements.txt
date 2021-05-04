@@ -8,7 +8,8 @@ python-dotenv==0.17.0
 
 # added manually
 pandas==1.2.4
-sklearn
+# sklearn needs to be replaced with other dependency
+# sklearn
 
 # still required?
 wheel==0.35.1
