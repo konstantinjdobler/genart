@@ -128,7 +128,7 @@ class GAN(pl.LightningModule):
         return g_loss
 
     def _discriminator_step(self, real_imgs, features):
-        '''Measure discriminator's ability to differntiate between real and generated samples'''
+        '''Measure discriminator's ability to differentiate between real and generated samples'''
         batch_size = real_imgs.shape[0]
 
         z = torch.randn(batch_size, self.hparams.latent_dim,
@@ -211,7 +211,7 @@ class WGAN_GP(GAN):
         return -torch.mean(predictions) if should_be_real else torch.mean(predictions)
 
     def _get_discriminator(self, data_shape, discriminator_type) -> nn.Module:
-        '''Wasserstein GANs cannot use batch norm in discriminator, wo we overwrite here'''
+        '''Wasserstein GANs cannot use batch norm in discriminator, so we overwrite here'''
         return super()._get_discriminator(data_shape, discriminator_type + "-wasserstein")
 
     def _generator_step(self, real_imgs, features):
@@ -282,10 +282,9 @@ class WGAN_GP(GAN):
         fake_detection_accuracy = accuracy(
             self.discretize_discriminator_output(fake_predictions), torch.zeros_like(fake_predictions, dtype=int))
 
-        # discriminator loss is the average of these
         gp = self.compute_gradient_penalty(
             real_imgs.data, fake_imgs.data, features)
-        # TODO: fix mafic value
+        # TODO: fix magic value
         d_loss = real_loss + fake_loss + 10 * gp
         self.log('train/d_loss', d_loss, on_epoch=True,
                  on_step=True, prog_bar=True)
