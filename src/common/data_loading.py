@@ -99,7 +99,9 @@ class WikiArtEmotionsDataModule2(pl.LightningDataModule):
         self.df_train, self.df_val = train_test_split(df, train_size=0.8)
 
         self.train_transforms = transforms.Compose([
-            transforms.RandomResizedCrop(crop_size),
+            # transforms.RandomResizedCrop(crop_size),
+            transforms.Resize(resize_size),
+            transforms.RandomCrop(crop_size),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
@@ -153,7 +155,7 @@ class AnnotatedImageDataset2(Dataset):
             img = self.transforms(img)
         img_labels = self.labels.iloc[index]
 
-        return img, img_labels.values
+        return img, img_labels.values.astype(float)
 
 
 class AnnotatedImageDataset(Dataset):
