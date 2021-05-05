@@ -11,6 +11,10 @@ import os
 import torchvision
 import pandas as pd
 
+WIKIART_EMOTIONS_MEANS = [0.50095144, 0.44335716, 0.38643128]  # of production
+WIKIART_EMOTIONS_STDS = [0.22497191,
+                         0.21211041, 0.19994931]  # better get tested
+
 
 class WikiArtEmotionsDataModule(pl.LightningDataModule):
 
@@ -34,7 +38,8 @@ class WikiArtEmotionsDataModule(pl.LightningDataModule):
 
         self.transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            transforms.Normalize(WIKIART_EMOTIONS_MEANS,
+                                 WIKIART_EMOTIONS_STDS),
             transforms.Resize(self.image_size),
             transforms.RandomCrop(self.image_size),
             transforms.RandomHorizontalFlip()
@@ -53,27 +58,6 @@ class WikiArtEmotionsDataModule(pl.LightningDataModule):
     def train_dataloader(self):
         return DataLoader(self.train_set, batch_size=self.batch_size, num_workers=self.num_workers, drop_last=True, shuffle=True)
 
-    # def val_dataloader(self):
-    #     return DataLoader(self.mnist_val, batch_size=self.batch_size, num_workers=self.num_workers)
-
-    # def test_dataloader(self):
-    #     return DataLoader(self.mnist_test, batch_size=self.batch_size, num_workers=self.num_workers)
-
-
-# data_transforms = {
-#     "train": transforms.Compose([
-#         transforms.RandomResizedCrop(224),
-#         transforms.RandomHorizontalFlip(),
-#         transforms.ToTensor(),
-#         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-#     ]),
-#     "val": transforms.Compose([
-#         transforms.Resize(256),
-#         transforms.CenterCrop(224),
-#         transforms.ToTensor(),
-#         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-#     ]),
-# }
 
 ID_COLUMN = "ID"
 PATH_COLUMN = "_path"
