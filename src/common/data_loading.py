@@ -24,7 +24,7 @@ class WikiArtEmotionsDataModule(pl.LightningDataModule):
         available_resizes = [dir[0].split("-")[-1]
                              for dir in os.walk(data_dir) if "images-" in dir[0]]
         resize_suffix = "" if len(
-            available_resizes) == 0 else f"-{min((size for size in available_resizes if int(size) >= image_resizing))}"
+            available_resizes) == 0 else f"-{min((int(size) for size in available_resizes if int(size) >= image_resizing))}"
         self.image_subfolder = Path(data_dir + f"/images{resize_suffix}")
         self.annotation_path = Path(
             data_dir + "/WikiArt-Emotions/WikiArt-Emotions-Ag4.tsv")
@@ -56,7 +56,7 @@ class WikiArtEmotionsDataModule(pl.LightningDataModule):
             self.annotation_path), transform=self.transform, fast_debug=self.fast_debug)
 
     def train_dataloader(self):
-        return DataLoader(self.train_set, batch_size=self.batch_size, num_workers=self.num_workers, drop_last=True, shuffle=True)
+        return DataLoader(self.train_set, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=True)
 
 
 ID_COLUMN = "ID"
