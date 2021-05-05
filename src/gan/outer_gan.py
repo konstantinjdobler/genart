@@ -137,8 +137,8 @@ class GAN(pl.LightningModule):
         real_ground_truth_standard, fake_ground_truth_standard = torch.ones(
             batch_size, 1).type_as(real_imgs), torch.zeros(batch_size, 1).type_as(real_imgs)
 
-        # Apply label smoothing if specified
-        real_ground_truth = real_ground_truth_standard.uniform_(
+        # Apply label smoothing if specified; .clone() to prevent modifying the standard ground truth
+        real_ground_truth = real_ground_truth_standard.clone().uniform_(
             self.hparams.label_smoothing, 1)
         # Apply label flipping if specified
         real_ground_truth = randomly_flip_labels(
