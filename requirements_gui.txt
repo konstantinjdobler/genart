@@ -1,0 +1,5 @@
+-r requirements.txt
+
+opencv-python==4.5.1.48
+torchvision==0.9.1
+torch==1.8.1

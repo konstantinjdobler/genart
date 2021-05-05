@@ -1,3 +1,4 @@
+from typing import Union
 import torch.nn as nn
 import torch
 
@@ -10,7 +11,7 @@ class ConvTranspose2dBlock(nn.Module):
                  stride: int = 2, padding: int = 1, bias=False,
                  upsampling_factor: int = None,  # must be divisible by 2
                  activation_function=nn.ReLU(True),
-                 batch_norm: bool = True, smoothed=False):
+                 batch_norm: bool = Union[bool, nn.Module], smoothed=False):
 
         super(ConvTranspose2dBlock, self).__init__()
         if upsampling_factor:
@@ -26,7 +27,14 @@ class ConvTranspose2dBlock(nn.Module):
         else:
             self.conv_layer = nn.ConvTranspose2d(
                 in_channels, out_channels, kernel_size, stride, padding, bias=bias)
-        self.batch_norm = nn.BatchNorm2d(out_channels) if batch_norm else None
+
+        if isinstance(batch_norm, nn.Module):
+            # custom normalization layer
+            self.batch_norm = batch_norm
+        elif batch_norm is True:
+            self.batch_norm = nn.BatchNorm2d(out_channels)
+        else:
+            self.batch_norm = None
         self.activation = activation_function
 
     def forward(self, x):
@@ -43,7 +51,7 @@ class Conv2dBlock(nn.Module):
                  downsampling_factor: int = None,  # must be divisible by 2
                  activation_function=nn.LeakyReLU(
                      0.2, inplace=True),  # from GAN Hacks
-                 batch_norm: bool = True):
+                 batch_norm: Union[bool, nn.Module] = True):
 
         super(Conv2dBlock, self).__init__()
         if downsampling_factor:
@@ -54,7 +62,14 @@ class Conv2dBlock(nn.Module):
 
         self.conv_layer = nn.Conv2d(
             in_channels, out_channels, kernel_size, stride, padding, bias=bias)
-        self.batch_norm = nn.BatchNorm2d(out_channels) if batch_norm else None
+
+        if isinstance(batch_norm, nn.Module):
+            # custom normalization layer
+            self.batch_norm = batch_norm
+        elif batch_norm is True:
+            self.batch_norm = nn.BatchNorm2d(out_channels)
+        else:
+            self.batch_norm = None
         self.activation = activation_function
 
     def forward(self, x):
@@ -119,7 +134,7 @@ class cDCDiscriminator(nn.Module):
             *middle_scaling_layers,
             Conv2dBlock(in_channels=n_filters * 2**num_middle_scaling_layers,
                         out_channels=1, kernel_size=4, stride=1, padding=0,
-                        batch_norm=False, activation_function=nn.Sigmoid()),
+                        batch_norm=False, activation_function=nn.Identity()),
         )
 
     def forward(self, x, attr):

@@ -7,7 +7,7 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader,  Dataset
 from PIL import Image
 import os
-from sklearn.model_selection import train_test_split
+# from sklearn.model_selection import train_test_split
 import torchvision
 import pandas as pd
 
