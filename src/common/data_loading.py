@@ -36,10 +36,10 @@ class WikiArtEmotionsDataModule(pl.LightningDataModule):
         self.image_size = image_resizing
         self.fast_debug = fast_debug
 
+        # TODO: I think we DON'T want to use the actual data stats here, because that would not normalize to [-1,1]. Am I correct?
         self.transform = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize(WIKIART_EMOTIONS_MEANS,
-                                 WIKIART_EMOTIONS_STDS),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
             transforms.Resize(self.image_size),
             transforms.RandomCrop(self.image_size),
             transforms.RandomHorizontalFlip()

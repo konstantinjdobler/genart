@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch
 
 from math import log
+import torchlayers
 
 
 class ConvTranspose2dBlock(nn.Module):
@@ -11,7 +12,7 @@ class ConvTranspose2dBlock(nn.Module):
                  stride: int = 2, padding: int = 1, bias=False,
                  upsampling_factor: int = None,  # must be divisible by 2
                  activation_function=nn.ReLU(True),
-                 batch_norm: bool = Union[bool, nn.Module], smoothed=False):
+                 batch_norm: bool = Union[bool, nn.Module], smoothing=False):
 
         super(ConvTranspose2dBlock, self).__init__()
         if upsampling_factor:
@@ -19,11 +20,14 @@ class ConvTranspose2dBlock(nn.Module):
             stride = upsampling_factor
             kernel_size = 2 * upsampling_factor
             padding = upsampling_factor // 2
-        if smoothed and upsampling_factor:
+        if smoothing == "regular-upsample" and upsampling_factor:
             # From https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/190#issuecomment-358546675
             self.conv_layer = nn.Sequential(nn.Upsample(scale_factor=upsampling_factor, mode='nearest'),
                                             nn.ReflectionPad2d(1),
                                             nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=0))
+        elif smoothing == "subpixel" and upsampling_factor:
+            self.conv_layer = torchlayers.upsample.ConvPixelShuffle(
+                in_channels, out_channels, upscale_factor=upsampling_factor)
         else:
             self.conv_layer = nn.ConvTranspose2d(
                 in_channels, out_channels, kernel_size, stride, padding, bias=bias)
@@ -81,7 +85,7 @@ class Conv2dBlock(nn.Module):
 
 class cDCGenerator(nn.Module):
 
-    def __init__(self, latent_dim: int, num_features: int, img_shape, n_filters=64, smoothed=False):
+    def __init__(self, latent_dim: int, num_features: int, img_shape, n_filters=64, smoothing=False):
         super(cDCGenerator, self).__init__()
         self.num_features = num_features
         # end layer has upsampling=2, first layer outputs 4x4
@@ -90,16 +94,16 @@ class cDCGenerator(nn.Module):
         # as many scaling layers as necessary to scale to the target image size
         middle_scaling_layers = [ConvTranspose2dBlock(in_channels=n_filters * 2**(i+1),
                                                       out_channels=n_filters * 2**i,
-                                                      upsampling_factor=2, smoothed=smoothed) for i in reversed(range(num_middle_scaling_layers))]
+                                                      upsampling_factor=2, smoothing=smoothing) for i in reversed(range(num_middle_scaling_layers))]
         self.main = nn.Sequential(
             ConvTranspose2dBlock(in_channels=latent_dim + num_features,
                                  out_channels=n_filters *
                                  (2**num_middle_scaling_layers),
-                                 kernel_size=4, stride=1, padding=0, smoothed=smoothed),
+                                 kernel_size=4, stride=1, padding=0, smoothing=smoothing),
             *middle_scaling_layers,
             ConvTranspose2dBlock(in_channels=n_filters,
                                  out_channels=3, upsampling_factor=2,
-                                 activation_function=nn.Tanh(), batch_norm=False, smoothed=smoothed),
+                                 activation_function=nn.Tanh(), batch_norm=False, smoothing=smoothing),
         )
 
     def forward(self, x, attr):
@@ -108,10 +112,16 @@ class cDCGenerator(nn.Module):
         return self.main(x)
 
 
-class cDCGeneratorSmoothed(cDCGenerator):
-    def __init__(self, latent_dim: int, num_features: int, img_shape, n_filters=64, smoothed=True):
-        super(cDCGeneratorSmoothed, self).__init__(latent_dim=latent_dim,
-                                                   num_features=num_features, img_shape=img_shape, n_filters=n_filters, smoothed=True)
+class cDCGeneratorRegularUpsample(cDCGenerator):
+    def __init__(self, latent_dim: int, num_features: int, img_shape, n_filters=64, smoothed="regular-upsample"):
+        super(cDCGeneratorRegularUpsample, self).__init__(latent_dim=latent_dim,
+                                                          num_features=num_features, img_shape=img_shape, n_filters=n_filters, smoothing="regular-upsample")
+
+
+class cDCGeneratorSubpixel(cDCGenerator):
+    def __init__(self, latent_dim: int, num_features: int, img_shape, n_filters=64, smoothed="subpixel"):
+        super(cDCGeneratorSubpixel, self).__init__(latent_dim=latent_dim,
+                                                   num_features=num_features, img_shape=img_shape, n_filters=n_filters, smoothing="subpixel")
 
 
 class cDCDiscriminator(nn.Module):

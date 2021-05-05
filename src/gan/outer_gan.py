@@ -9,14 +9,16 @@ import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.metrics.functional import accuracy
 
-from src.gan.unconditional_dc_gan import DCDiscriminator, DCGenerator, DCGeneratorSmoothed, WassersteinDiscriminator
+from src.gan.unconditional_dc_gan import DCDiscriminator, DCGenerator, DCGeneratorRegularUpsample, DCGeneratorSubpixel, WassersteinDiscriminator
 from src.common.helpers import push_file_to_wandb, randomly_flip_labels
-from src.gan.conditional_dc_gan import cDCGenerator, cDCDiscriminator, cDCGeneratorSmoothed
+from src.gan.conditional_dc_gan import cDCGenerator, cDCDiscriminator, cDCGeneratorRegularUpsample, cDCGeneratorSubpixel
 
 generator_dict = {
-    'cdc-smoothed': cDCGeneratorSmoothed,
+    'cdc-subpixel': cDCGeneratorSubpixel,
+    'cdc-regular-upsample': cDCGeneratorRegularUpsample,
     'cdc': cDCGenerator,
-    'dc-smoothed': DCGeneratorSmoothed,
+    'dc-subpixel': DCGeneratorSubpixel,
+    'dc-regular-upsample': DCGeneratorRegularUpsample,
     'dc': DCGenerator
 }
 
@@ -53,9 +55,9 @@ class GAN(pl.LightningModule):
         # networks
         data_shape = (channels, width, height)
         self.generator = self._get_generator(data_shape, generator_type)
+
         self.discriminator = self._get_discriminator(
             data_shape, discriminator_type)
-
         self.validation_z = torch.randn(8, self.hparams.latent_dim, 1, 1)
 
         self.example_input_array = torch.zeros(
@@ -95,6 +97,9 @@ class GAN(pl.LightningModule):
         if classname == 'Conv2d' or classname == 'ConvTranspose2d':
             torch.nn.init.normal_(m.weight, 0.0, 0.02)
         elif classname.find("BatchNorm") != -1:
+            torch.nn.init.normal_(m.weight, 1.0, 0.02)
+            torch.nn.init.zeros_(m.bias)
+        elif classname.find("InstanceNorm") != -1:
             torch.nn.init.normal_(m.weight, 1.0, 0.02)
             torch.nn.init.zeros_(m.bias)
 
@@ -191,6 +196,7 @@ class GAN(pl.LightningModule):
         return [opt_d, opt_g], []
 
     def on_epoch_end(self):
+        # TODO: do we need to call self.generator.eval() here?
         z = self.validation_z.to(self.device)
 
         # log sampled images
