@@ -35,7 +35,8 @@ class EmotionClassifier(pl.LightningModule):
 
         self.model = EmotionResnetClassifier(num_classes)
         # self.criterion = nn.CrossEntropyLoss()
-        self.criterion = self.cross_entropy
+        self.criterion = nn.BCEWithLogitsLoss()
+        # self.criterion = self.cross_entropy
 
     def set_argparse_config(self, config):
         '''Call before training start'''
@@ -51,6 +52,7 @@ class EmotionClassifier(pl.LightningModule):
         imgs, features = batch
         # print("Features:", features)
         outputs = self.model(imgs)
+        features = features.type_as(outputs)
         loss = self.criterion(outputs, features)
         self.log("train/loss", loss, on_epoch=True,
                  on_step=False, logger=True, prog_bar=True)
@@ -59,15 +61,17 @@ class EmotionClassifier(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         imgs, labels = batch
         outputs = self.model(imgs)
+        labels = labels.type_as(outputs)
+        # print("validation:", outputs, labels)
         loss = self.criterion(outputs, labels)
-        _, preds = torch.max(outputs, 1)
-        _, highest_labels = torch.max(labels, 1)
-        acc = torch.sum(preds == highest_labels) / labels.size(0)
+        # _, preds = torch.max(outputs, 1)
+        # _, highest_labels = torch.max(labels, 1)
+        # acc = torch.sum(preds == highest_labels) / labels.size(0)
         self.log("val/loss", loss, on_epoch=True,
                  on_step=False, logger=True, prog_bar=True)
-        self.log("val/accuracy", acc, on_epoch=True,
-                 on_step=False, logger=True, prog_bar=True)
-        return loss, acc
+        # self.log("val/accuracy", acc, on_epoch=True,
+        #          on_step=False, logger=True, prog_bar=True)
+        return loss
 
     def configure_optimizers(self):
         # Observe that all parameters are being optimized
