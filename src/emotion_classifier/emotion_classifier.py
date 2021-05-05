@@ -7,6 +7,7 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 import wandb
 from common.helpers import push_file_to_wandb
+from typing import List
 
 
 class EmotionResnetClassifier(nn.Module):
@@ -29,14 +30,12 @@ class EmotionResnetClassifier(nn.Module):
 
 class EmotionClassifier(pl.LightningModule):
 
-    def __init__(self, num_classes: int):
+    def __init__(self, num_classes: int, label_names: List[str], lr: float, pred_threshold: float = 0.5):
         super().__init__()
         self.save_hyperparameters()
 
         self.model = EmotionResnetClassifier(num_classes)
-        # self.criterion = nn.CrossEntropyLoss()
         self.criterion = nn.BCEWithLogitsLoss()
-        # self.criterion = self.cross_entropy
 
     def set_argparse_config(self, config):
         '''Call before training start'''
@@ -50,9 +49,7 @@ class EmotionClassifier(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         imgs, features = batch
-        # print("Features:", features)
         outputs = self.model(imgs)
-        features = features.type_as(outputs)
         loss = self.criterion(outputs, features)
         self.log("train/loss", loss, on_epoch=True,
                  on_step=False, logger=True, prog_bar=True)
@@ -61,26 +58,42 @@ class EmotionClassifier(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         imgs, labels = batch
         outputs = self.model(imgs)
-        labels = labels.type_as(outputs)
-        # print("validation:", outputs, labels)
         loss = self.criterion(outputs, labels)
-        # _, preds = torch.max(outputs, 1)
-        # _, highest_labels = torch.max(labels, 1)
-        # acc = torch.sum(preds == highest_labels) / labels.size(0)
         self.log("val/loss", loss, on_epoch=True,
                  on_step=False, logger=True, prog_bar=True)
-        # self.log("val/accuracy", acc, on_epoch=True,
-        #          on_step=False, logger=True, prog_bar=True)
-        return loss
+
+        p = labels.sum(dim=0)
+        pred = torch.sigmoid(outputs) >= self.hparams.pred_threshold
+        tp = torch.logical_and(pred == 1, labels == 1).sum(dim=0)
+        fp = torch.logical_and(pred == 1, labels == 0).sum(dim=0)
+        fn = torch.logical_and(pred == 0, labels == 1).sum(dim=0)
+        tn = torch.logical_and(pred == 0, labels == 0).sum(dim=0)
+        return {"p": p.cpu(), "tp": tp.cpu(), "fp": fp.cpu(), "fn": fn.cpu(), "tn": tn.cpu()}
+
+    def validation_epoch_end(self, outputs):
+        p, tp, fp, fn, tn = torch.zeros(self.hparams.num_classes), torch.zeros(self.hparams.num_classes), torch.zeros(
+            self.hparams.num_classes), torch.zeros(self.hparams.num_classes), torch.zeros(self.hparams.num_classes)
+        for v in outputs:
+            p += v["p"]
+            tp += v["tp"]
+            fp += v["fp"]
+            fn += v["fn"]
+            tn += v["tn"]
+        precision = tp / (tp + fp)
+        recall = tp / (tp + fn)
+        f1 = 2 * precision * recall / (precision + recall)
+        accuracy = (tp + tn) / (tp + tn + fp + fn)
+        metrics = {"precision": precision, "recall": recall, "f1": f1,
+                   "accuracy": accuracy, "p": p, "tp": tp, "fp": fp, "fn": fn, "tn": tn}
+
+        for i, label_name in enumerate(self.hparams.label_names):
+            for metric_name, metric in metrics.items():
+                self.log(f"{label_name}/{metric_name}", metric[i])
 
     def configure_optimizers(self):
         # Observe that all parameters are being optimized
-        optimizer = optim.SGD(self.model.parameters(), lr=0.001, momentum=0.9)
-
-        # Decay LR by a factor of 0.1 every 7 epochs
-        exp_lr_scheduler = lr_scheduler.StepLR(
-            optimizer, step_size=7, gamma=0.1)
-        return [optimizer], [exp_lr_scheduler]
+        optimizer = optim.Adam(self.model.parameters(), lr=self.hparams.lr)
+        return optimizer
 
     def on_epoch_end(self):
         # Save preliminary model to wandb in case of crash

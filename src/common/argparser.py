@@ -47,6 +47,8 @@ def get_training_parser():
                         default=[], help="Tag this run in wandb.")
     parser.add_argument('--fast-debug', action="store_true",
                         help="do a fast run through the code to check for errors")
+    parser.add_argument('--pred-threshold', '-pt', type=float,
+                        default=0.5, help="Threshold to make a positive prediction")
 
     return parser
 
