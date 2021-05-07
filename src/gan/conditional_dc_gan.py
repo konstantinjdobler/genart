@@ -7,12 +7,14 @@ import torchlayers
 
 
 class ConvTranspose2dBlock(nn.Module):
+    '''Convolutional upsampling block. Normalization defaults to BatchNorm but can be customized.'''
+
     def __init__(self, in_channels: int, out_channels: int,
                  kernel_size: int = 4,
                  stride: int = 2, padding: int = 1, bias=False,
                  upsampling_factor: int = None,  # must be divisible by 2
                  activation_function=nn.ReLU(True),
-                 batch_norm: bool = Union[bool, nn.Module], smoothing=False):
+                 normalization: Union[bool, nn.Module] = True, smoothing=False):
 
         super(ConvTranspose2dBlock, self).__init__()
         if upsampling_factor:
@@ -32,30 +34,32 @@ class ConvTranspose2dBlock(nn.Module):
             self.conv_layer = nn.ConvTranspose2d(
                 in_channels, out_channels, kernel_size, stride, padding, bias=bias)
 
-        if isinstance(batch_norm, nn.Module):
+        if isinstance(normalization, nn.Module):
             # custom normalization layer
-            self.batch_norm = batch_norm
-        elif batch_norm is True:
-            self.batch_norm = nn.BatchNorm2d(out_channels)
+            self.normalization = normalization
+        elif normalization is True:
+            self.normalization = nn.BatchNorm2d(out_channels)
         else:
-            self.batch_norm = None
+            self.normalization = None
         self.activation = activation_function
 
     def forward(self, x):
         out = self.conv_layer(x)
-        if self.batch_norm:
-            out = self.batch_norm(out)
+        if self.normalization:
+            out = self.normalization(out)
         return self.activation(out)
 
 
 class Conv2dBlock(nn.Module):
+    '''Convolutional downsampling block. Normalization defaults to BatchNorm but can be customized.'''
+
     def __init__(self, in_channels: int, out_channels: int,
                  kernel_size: int = 4,
                  stride: int = 2, padding: int = 1, bias=False,
                  downsampling_factor: int = None,  # must be divisible by 2
                  activation_function=nn.LeakyReLU(
                      0.2, inplace=True),  # from GAN Hacks
-                 batch_norm: Union[bool, nn.Module] = True):
+                 normalization: Union[bool, nn.Module] = True):
 
         super(Conv2dBlock, self).__init__()
         if downsampling_factor:
@@ -67,19 +71,19 @@ class Conv2dBlock(nn.Module):
         self.conv_layer = nn.Conv2d(
             in_channels, out_channels, kernel_size, stride, padding, bias=bias)
 
-        if isinstance(batch_norm, nn.Module):
+        if isinstance(normalization, nn.Module):
             # custom normalization layer
-            self.batch_norm = batch_norm
-        elif batch_norm is True:
-            self.batch_norm = nn.BatchNorm2d(out_channels)
+            self.normalization = normalization
+        elif normalization is True:
+            self.normalization = nn.BatchNorm2d(out_channels)
         else:
-            self.batch_norm = None
+            self.normalization = None
         self.activation = activation_function
 
     def forward(self, x):
         out = self.conv_layer(x)
-        if self.batch_norm:
-            out = self.batch_norm(out)
+        if self.normalization:
+            out = self.normalization(out)
         return self.activation(out)
 
 
@@ -103,7 +107,7 @@ class cDCGenerator(nn.Module):
             *middle_scaling_layers,
             ConvTranspose2dBlock(in_channels=n_filters,
                                  out_channels=3, upsampling_factor=2,
-                                 activation_function=nn.Tanh(), batch_norm=False, smoothing=smoothing),
+                                 activation_function=nn.Tanh(), normalization=False, smoothing=smoothing),
         )
 
     def forward(self, x, attr):
@@ -140,11 +144,11 @@ class cDCDiscriminator(nn.Module):
                                              downsampling_factor=2) for i in range(num_middle_scaling_layers)]
         self.main = nn.Sequential(
             Conv2dBlock(in_channels=3 + 1, out_channels=n_filters,
-                        downsampling_factor=2, batch_norm=False),
+                        downsampling_factor=2, normalization=False),
             *middle_scaling_layers,
             Conv2dBlock(in_channels=n_filters * 2**num_middle_scaling_layers,
                         out_channels=1, kernel_size=4, stride=1, padding=0,
-                        batch_norm=False, activation_function=nn.Identity()),
+                        normalization=False, activation_function=nn.Identity()),
         )
 
     def forward(self, x, attr):

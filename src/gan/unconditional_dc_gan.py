@@ -25,7 +25,7 @@ class DCGenerator(nn.Module):
             *middle_scaling_layers,
             ConvTranspose2dBlock(in_channels=n_filters,
                                  out_channels=3, upsampling_factor=2,
-                                 activation_function=nn.Tanh(), batch_norm=False, smoothing=smoothing),
+                                 activation_function=nn.Tanh(), normalization=False, smoothing=smoothing),
         )
 
     def forward(self, x, attr):
@@ -58,11 +58,11 @@ class DCDiscriminator(nn.Module):
                                              downsampling_factor=2) for i in range(num_middle_scaling_layers)]
         self.main = nn.Sequential(
             Conv2dBlock(in_channels=3, out_channels=n_filters,
-                        downsampling_factor=2, batch_norm=False),
+                        downsampling_factor=2, normalization=False),
             *middle_scaling_layers,
             Conv2dBlock(in_channels=n_filters * 2**num_middle_scaling_layers,
                         out_channels=1, kernel_size=4, stride=1, padding=0,
-                        batch_norm=False, activation_function=nn.Identity()),
+                        normalization=False, activation_function=nn.Identity()),
         )
 
     def forward(self, x, attr):
@@ -83,16 +83,16 @@ class WassersteinDiscriminator(nn.Module):
                                              out_channels=n_filters *
                                              2**(i + 1),
                                              downsampling_factor=2,
-                                             batch_norm=nn.InstanceNorm2d(
+                                             normalization=nn.InstanceNorm2d(
                                                  n_filters * 2**(i + 1), affine=True, track_running_stats=True)
                                              ) for i in range(num_middle_scaling_layers)]
         self.main = nn.Sequential(
             Conv2dBlock(in_channels=3, out_channels=n_filters,
-                        downsampling_factor=2, batch_norm=False),
+                        downsampling_factor=2, normalization=False),
             *middle_scaling_layers,
             Conv2dBlock(in_channels=n_filters * 2**num_middle_scaling_layers,
                         out_channels=1, kernel_size=4, stride=1, padding=0,
-                        batch_norm=False, activation_function=nn.Identity()),
+                        normalization=False, activation_function=nn.Identity()),
         )
 
     def forward(self, x, attr):
