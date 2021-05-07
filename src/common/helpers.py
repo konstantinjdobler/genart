@@ -1,4 +1,5 @@
 from argparse import Namespace
+from enum import Enum
 import wandb
 import os
 import subprocess
@@ -71,3 +72,9 @@ def before_run(config: Namespace):
         os.environ["WANDB_MODE"] = "dryrun"
 
     load_dotenv()
+
+class ExtendedEnum(Enum):
+
+    @classmethod
+    def list(cls):
+        return list(map(lambda c: c.value, cls))

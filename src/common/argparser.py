@@ -1,5 +1,6 @@
 import argparse
 from datetime import datetime
+from src.gan.inner_gans import ConditionMode
 from src.gan.outer_gan import generator_dict, discriminator_dict
 from pathlib import Path
 
@@ -24,6 +25,8 @@ def get_training_parser():
                         choices=list(generator_dict.keys()), help="Specify the type of generator that will be used.")
     parser.add_argument('--discriminator-type', '--disc', default=list(discriminator_dict.keys())[0],
                         choices=list(discriminator_dict.keys()), help="Specify the type of discriminator that will be used.")
+    parser.add_argument('--conditioning', type=str, default=ConditionMode.unconditional,
+                        choices=ConditionMode.list(), help="Specify the conitioing to use / or unconditional.")
     parser.add_argument('--image-resizing', '-i', type=int, default=256)
     parser.add_argument('--lr', type=float, default=0.0002)
     parser.add_argument('--epochs', '-e', type=int, default=20)

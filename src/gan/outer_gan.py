@@ -9,23 +9,27 @@ import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.metrics.functional import accuracy
 
-from src.gan.unconditional_dc_gan import DCDiscriminator, DCGenerator, DCGeneratorRegularUpsample, DCGeneratorSubpixel, WassersteinDiscriminator
 from src.common.helpers import push_file_to_wandb, randomly_flip_labels
-from src.gan.conditional_dc_gan import cDCGenerator, cDCDiscriminator, cDCGeneratorRegularUpsample, cDCGeneratorSubpixel
+from src.gan.inner_gans import ConditionMode, UpsamplingMode, WassersteinDiscriminator, DCGenerator, DCDiscriminator
+
+
+def generator_factory(BaseType, **characteristics):
+    return lambda *args, **kwargs: BaseType(*args, **kwargs, **characteristics)
+
 
 generator_dict = {
-    'cdc-subpixel': cDCGeneratorSubpixel,
-    'cdc-regular-upsample': cDCGeneratorRegularUpsample,
-    'cdc': cDCGenerator,
-    'dc-subpixel': DCGeneratorSubpixel,
-    'dc-regular-upsample': DCGeneratorRegularUpsample,
-    'dc': DCGenerator
+    'cdc-subpixel': generator_factory(DCGenerator, upsampling_mode=UpsamplingMode.subpixel, condition_mode=ConditionMode.simple_conditioning),
+    'cdc-regular-upsample': generator_factory(DCGenerator, upsampling_mode=UpsamplingMode.regular_conv, condition_mode=ConditionMode.simple_conditioning),
+    'cdc': generator_factory(DCGenerator, upsampling_mode=UpsamplingMode.transposed_conv, condition_mode=ConditionMode.simple_conditioning),
+    'dc-subpixel': generator_factory(DCGenerator, upsampling_mode=UpsamplingMode.subpixel, condition_mode=ConditionMode.unconditional),
+    'dc-regular-upsample': generator_factory(DCGenerator, upsampling_mode=UpsamplingMode.regular_conv, condition_mode=ConditionMode.unconditional),
+    'dc': generator_factory(DCGenerator, upsampling_mode=UpsamplingMode.transposed_conv, condition_mode=ConditionMode.unconditional)
 }
 
 discriminator_dict = {
-    'cdc': cDCDiscriminator,
-    'dc': DCDiscriminator,
-    'dc-wasserstein': WassersteinDiscriminator
+    'cdc': generator_factory(DCDiscriminator, condition_mode=ConditionMode.simple_conditioning),
+    'dc': generator_factory(DCDiscriminator, condition_mode=ConditionMode.unconditional),
+    'dc-wasserstein': generator_factory(WassersteinDiscriminator, condition_mode=ConditionMode.unconditional),
 }
 
 

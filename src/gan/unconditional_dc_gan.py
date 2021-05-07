@@ -16,16 +16,16 @@ class DCGenerator(nn.Module):
         # as many scaling layers as necessary to scale to the target image size
         middle_scaling_layers = [ConvTranspose2dBlock(in_channels=n_filters * 2**(i+1),
                                                       out_channels=n_filters * 2**i,
-                                                      upsampling_factor=2, smoothing=smoothing) for i in reversed(range(num_middle_scaling_layers))]
+                                                      upsampling_factor=2, upsampling_mode=smoothing) for i in reversed(range(num_middle_scaling_layers))]
         self.main = nn.Sequential(
             ConvTranspose2dBlock(in_channels=latent_dim,
                                  out_channels=n_filters *
                                  (2**num_middle_scaling_layers),
-                                 kernel_size=4, stride=1, padding=0, smoothing=smoothing),
+                                 kernel_size=4, stride=1, padding=0, upsampling_mode=smoothing),
             *middle_scaling_layers,
             ConvTranspose2dBlock(in_channels=n_filters,
                                  out_channels=3, upsampling_factor=2,
-                                 activation_function=nn.Tanh(), normalization=False, smoothing=smoothing),
+                                 activation_function=nn.Tanh(), normalization=False, upsampling_mode=smoothing),
         )
 
     def forward(self, x, attr):
