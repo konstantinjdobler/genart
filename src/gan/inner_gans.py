@@ -64,17 +64,24 @@ class DCGenerator(nn.Module):
 
 
 class DCDiscriminator(nn.Module):
-    def __init__(self, num_features: int, img_shape: Tuple[int], n_filters=64, condition_mode: ConditionMode = ConditionMode.unconditional):
+    def __init__(self, num_features: int, img_shape: Tuple[int], n_filters=64, condition_mode: ConditionMode = ConditionMode.unconditional, wasserstein: bool = False):
         super(DCDiscriminator, self).__init__()
 
         print(condition_mode)
         self.input_image_size = img_shape[-1]
         # end layer has upsampling=2, first layer outputs 4x4
         num_middle_scaling_layers = int(log(self.input_image_size, 2) - 3)
+
+        # wasserstein cannot use the default BatchNorm
+        normalization_func = (lambda i: nn.InstanceNorm2d(n_filters * 2**(i + 1), affine=True, track_running_stats=True)
+                              ) if wasserstein else lambda i: True
+
         # as many scaling layers as necessary to scale to the target image size
         middle_scaling_layers = [Conv2dBlock(in_channels=n_filters * 2**i,
                                              out_channels=n_filters *
                                              2**(i + 1),
+                                             normalization=normalization_func(
+                                                 i),
                                              downsampling_factor=2) for i in range(num_middle_scaling_layers)]
 
         image_in_channels = 4 if condition_mode == ConditionMode.simple_conditioning else 3
@@ -110,33 +117,3 @@ class DCDiscriminator(nn.Module):
         '''attr is not used'''
 
         return self.main(x).view(-1, 1)
-
-
-class WassersteinDiscriminator(DCDiscriminator):
-    '''TODO: this can probably be integrated in DCDiscriminator'''
-
-    def __init__(self, num_features: int, img_shape, n_filters=64, condition_mode: ConditionMode = ConditionMode.unconditional):
-        super(WassersteinDiscriminator, self).__init__()
-        self.input_image_size = img_shape[-1]
-
-        # end layer has upsampling=2, first layer outputs 4x4
-        num_middle_scaling_layers = int(log(self.input_image_size, 2) - 3)
-        # as many scaling layers as necessary to scale to the target image size
-        middle_scaling_layers = [Conv2dBlock(in_channels=n_filters * 2**i,
-                                             out_channels=n_filters *
-                                             2**(i + 1),
-                                             downsampling_factor=2,
-                                             normalization=nn.InstanceNorm2d(
-                                                 n_filters * 2**(i + 1), affine=True, track_running_stats=True)
-                                             ) for i in range(num_middle_scaling_layers)]
-
-        image_in_channels = 4 if condition_mode == ConditionMode.simple_conditioning else 3
-        self.main = nn.Sequential(
-            Conv2dBlock(in_channels=image_in_channels, out_channels=n_filters,
-                        downsampling_factor=2, normalization=False),
-            *middle_scaling_layers,
-            Conv2dBlock(in_channels=n_filters * 2**num_middle_scaling_layers,
-                        out_channels=1, kernel_size=4, stride=1, padding=0,
-                        normalization=False, activation_function=nn.Identity()),
-        )
-        self._setup_condition_mode(condition_mode, num_features)

@@ -10,26 +10,14 @@ import pytorch_lightning as pl
 from pytorch_lightning.metrics.functional import accuracy
 
 from src.common.helpers import push_file_to_wandb, randomly_flip_labels
-from src.gan.inner_gans import ConditionMode, UpsamplingMode, WassersteinDiscriminator, DCGenerator, DCDiscriminator
-
-
-def generator_factory(BaseType, **characteristics):
-    return lambda *args, **kwargs: BaseType(*args, **kwargs, **characteristics)
-
+from src.gan.inner_gans import ConditionMode, UpsamplingMode, DCGenerator, DCDiscriminator
 
 generator_dict = {
-    'cdc-subpixel': generator_factory(DCGenerator, upsampling_mode=UpsamplingMode.subpixel, condition_mode=ConditionMode.simple_conditioning),
-    'cdc-regular-upsample': generator_factory(DCGenerator, upsampling_mode=UpsamplingMode.regular_conv, condition_mode=ConditionMode.simple_conditioning),
-    'cdc': generator_factory(DCGenerator, upsampling_mode=UpsamplingMode.transposed_conv, condition_mode=ConditionMode.simple_conditioning),
-    'dc-subpixel': generator_factory(DCGenerator, upsampling_mode=UpsamplingMode.subpixel, condition_mode=ConditionMode.unconditional),
-    'dc-regular-upsample': generator_factory(DCGenerator, upsampling_mode=UpsamplingMode.regular_conv, condition_mode=ConditionMode.unconditional),
-    'dc': generator_factory(DCGenerator, upsampling_mode=UpsamplingMode.transposed_conv, condition_mode=ConditionMode.unconditional)
+    'dc': DCGenerator
 }
 
 discriminator_dict = {
-    'cdc': generator_factory(DCDiscriminator, condition_mode=ConditionMode.simple_conditioning),
-    'dc': generator_factory(DCDiscriminator, condition_mode=ConditionMode.unconditional),
-    'dc-wasserstein': generator_factory(WassersteinDiscriminator, condition_mode=ConditionMode.unconditional),
+    'dc': DCDiscriminator
 }
 
 
@@ -37,31 +25,26 @@ class GAN(pl.LightningModule):
 
     def __init__(
         self,
-        channels,
-        width,
-        height,
-        latent_dim,
-        num_features,
-        lr,
-        batch_size,
-        label_flipping_p,
-        label_smoothing,
-        b1=0.5,
-        b2=0.99,
-        condition=True,
-        generator_type=list(generator_dict.keys())[0],
-        discriminator_type=list(discriminator_dict.keys())[0],
+        channels: int, width: int, height: int,
+        latent_dim: int, num_features: int, lr: float,
+        batch_size: int, label_flipping_p: float,
+        label_smoothing: float, b1: float = 0.5, b2: float = 0.99,
+        generator_type: str = list(generator_dict.keys())[0],
+        discriminator_type: str = list(discriminator_dict.keys())[0],
+        condition_mode: ConditionMode = ConditionMode.unconditional,
+        upsampling_mode: UpsamplingMode = UpsamplingMode.transposed_conv,
         ** kwargs
     ):
         super().__init__()
         self.save_hyperparameters()
-
+        print("Using hyperparameters:", self.hparams)
         # networks
         data_shape = (channels, width, height)
-        self.generator = self._get_generator(data_shape, generator_type)
+        self.generator = self._get_generator(
+            data_shape, generator_type, condition_mode, upsampling_mode)
 
         self.discriminator = self._get_discriminator(
-            data_shape, discriminator_type)
+            data_shape, discriminator_type, condition_mode, False)
         self.validation_z = torch.randn(8, self.hparams.latent_dim, 1, 1)
 
         self.example_input_array = torch.zeros(
@@ -78,20 +61,21 @@ class GAN(pl.LightningModule):
         self.argparse_config = config
         return self
 
-    def _get_generator(self, data_shape, generator_type) -> nn.Module:
+    def _get_generator(self, data_shape, generator_type, condition_mode, upsampling_mode) -> nn.Module:
         GeneratorClass = generator_dict[generator_type]
-        print("Using generator", GeneratorClass.__name__)
+        print("Using generator architecture", GeneratorClass.__name__)
         generator = GeneratorClass(latent_dim=self.hparams.latent_dim,
-                                   num_features=self.hparams.num_features, img_shape=data_shape)
+                                   num_features=self.hparams.num_features, img_shape=data_shape,
+                                   condition_mode=condition_mode, upsampling_mode=upsampling_mode)
         generator.apply(self._weights_init)
         return generator
 
-    def _get_discriminator(self, data_shape, discriminator_type) -> nn.Module:
+    def _get_discriminator(self, data_shape, discriminator_type, condition_mode, wasserstein) -> nn.Module:
         DiscriminatorClass = discriminator_dict[discriminator_type]
         print("Using discriminator", DiscriminatorClass.__name__)
 
-        discriminator = DiscriminatorClass(
-            num_features=self.hparams.num_features, img_shape=data_shape)
+        discriminator = DiscriminatorClass(num_features=self.hparams.num_features, img_shape=data_shape,
+                                           condition_mode=condition_mode, wasserstein=wasserstein)
         discriminator.apply(self._weights_init)
         return discriminator
 
@@ -220,9 +204,9 @@ class WGAN_GP(GAN):
         '''The discriminator should learn to assign high values (>0, close to 1) to real images and low values (<0, clos to -1) to fake images'''
         return -torch.mean(predictions) if should_be_real else torch.mean(predictions)
 
-    def _get_discriminator(self, data_shape, discriminator_type) -> nn.Module:
+    def _get_discriminator(self, data_shape, discriminator_type, condition_mode, wasserstein) -> nn.Module:
         '''Wasserstein GANs cannot use batch norm in discriminator, so we overwrite here'''
-        return super()._get_discriminator(data_shape, discriminator_type + "-wasserstein")
+        return super()._get_discriminator(data_shape, discriminator_type, condition_mode, wasserstein=True)
 
     def _generator_step(self, real_imgs, features):
         batch_size = real_imgs.shape[0]
