@@ -1,6 +1,7 @@
 import argparse
 from datetime import datetime
 from src.gan.outer_gan import generator_dict, discriminator_dict
+from pathlib import Path
 
 
 def get_training_parser():
@@ -37,7 +38,7 @@ def get_training_parser():
                         help="Use Wasserstein-1 distance formulation instead of classic GAN")
     ###################### ------------------ #####################
     parser.add_argument('--results-dir', '-c', type=str,
-                        default=f"./results/")
+                        default=f"./mnt/results/")
     parser.add_argument('--wandb-project-name', '-wpn', type=str,
                         help='Name of the project in wandb to log to', default='genart-spike')
     parser.add_argument('--training-name', '-n', type=str,
@@ -64,6 +65,7 @@ def parse_config(parser: argparse.ArgumentParser):
         config.batch_size = 4
         config.epochs = 3
         config.no_wandb = True
-    config.results_dir = config.results_dir + config.training_name
+    config.results_dir = config.results_dir + config.training_name + (
+        datetime.now().strftime('%d-%m-%Y_%H_%M_%S') if Path(config.results_dir + config.training_name).exists() else "")
 
     return config
