@@ -1,3 +1,5 @@
+
+from enum import Enum
 from torch.functional import Tensor
 import wandb
 
@@ -10,7 +12,22 @@ import pytorch_lightning as pl
 from pytorch_lightning.metrics.functional import accuracy
 
 from src.common.helpers import push_file_to_wandb, randomly_flip_labels
-from src.gan.inner_gans import ConditionMode, UpsamplingMode, DCGenerator, DCDiscriminator
+
+
+class UpsamplingMode(Enum):
+    transposed_conv = "transposed_conv"
+    subpixel = "subpixel"
+    regular_conv = "regular_conv"
+
+
+class ConditionMode(Enum):
+    unconditional = "unconditional"
+    simple_conditioning = "simple_conditioning"
+    simple_embedding = "simple_embedding"  # TODO: implement this
+    auxiliary = "auxiliary"  # TODO: implement this
+
+
+from src.gan.inner_gans import DCGenerator, DCDiscriminator  # nopep8 # avoid cyclical import error
 
 generator_dict = {
     'dc': DCGenerator
@@ -33,11 +50,12 @@ class GAN(pl.LightningModule):
         discriminator_type: str = list(discriminator_dict.keys())[0],
         condition_mode: ConditionMode = ConditionMode.unconditional,
         upsampling_mode: UpsamplingMode = UpsamplingMode.transposed_conv,
+        wasserstein=False,
         ** kwargs
     ):
         super().__init__()
         self.save_hyperparameters()
-        print("Using hyperparameters:", self.hparams)
+        print("Using hyperparameters:\n", self.hparams)
         # networks
         data_shape = (channels, width, height)
         self.generator = self._get_generator(
@@ -63,7 +81,6 @@ class GAN(pl.LightningModule):
 
     def _get_generator(self, data_shape, generator_type, condition_mode, upsampling_mode) -> nn.Module:
         GeneratorClass = generator_dict[generator_type]
-        print("Using generator architecture", GeneratorClass.__name__)
         generator = GeneratorClass(latent_dim=self.hparams.latent_dim,
                                    num_features=self.hparams.num_features, img_shape=data_shape,
                                    condition_mode=condition_mode, upsampling_mode=upsampling_mode)
@@ -72,8 +89,6 @@ class GAN(pl.LightningModule):
 
     def _get_discriminator(self, data_shape, discriminator_type, condition_mode, wasserstein) -> nn.Module:
         DiscriminatorClass = discriminator_dict[discriminator_type]
-        print("Using discriminator", DiscriminatorClass.__name__)
-
         discriminator = DiscriminatorClass(num_features=self.hparams.num_features, img_shape=data_shape,
                                            condition_mode=condition_mode, wasserstein=wasserstein)
         discriminator.apply(self._weights_init)
@@ -199,6 +214,9 @@ class GAN(pl.LightningModule):
 
 class WGAN_GP(GAN):
     '''Based on https://github.com/nocotan/pytorch-lightning-gans/blob/master/models/wgan_gp.py'''
+
+    def __init__(self, *args, wasserstein=True, **kwargs):
+        super().__init__(*args, **kwargs, wasserstein=wasserstein)
 
     def adversarial_loss(self, predictions, should_be_real=True):
         '''The discriminator should learn to assign high values (>0, close to 1) to real images and low values (<0, clos to -1) to fake images'''

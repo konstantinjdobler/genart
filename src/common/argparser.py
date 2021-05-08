@@ -26,10 +26,10 @@ def get_training_parser():
                         choices=list(generator_dict.keys()), help="Specify the type of generator that will be used.")
     parser.add_argument('--discriminator-type', '--disc', default=list(discriminator_dict.keys())[0],
                         choices=list(discriminator_dict.keys()), help="Specify the type of discriminator that will be used.")
-    parser.add_argument('--condition-mode', type=str, default=ConditionMode.unconditional,
-                        choices=ConditionMode.list(), help="Specify the conditioning to use / or unconditional.")
-    parser.add_argument('--upsampling-mode', type=str, default=UpsamplingMode.transposed_conv,
-                        choices=UpsamplingMode.list(), help="Specify the upsampling mode.")
+    parser.add_argument('--condition-mode', type=lambda x: ConditionMode(x), default=ConditionMode.unconditional,
+                        choices=ConditionMode, help="Specify the conditioning to use / or unconditional.")
+    parser.add_argument('--upsampling-mode', type=lambda x: UpsamplingMode(x), default=UpsamplingMode.transposed_conv,
+                        choices=UpsamplingMode, help="Specify the upsampling mode.")
     parser.add_argument('--image-resizing', '-i', type=int, default=256)
     parser.add_argument('--lr', type=float, default=0.0002)
     parser.add_argument('--epochs', '-e', type=int, default=20)

@@ -1,18 +1,10 @@
-from src.gan.blocks import Conv2dBlock, ConvTranspose2dBlock, UpsamplingMode
-from src.common.helpers import ExtendedEnum
+from src.gan.outer_gan import ConditionMode, UpsamplingMode
+from src.gan.blocks import Conv2dBlock, ConvTranspose2dBlock
 from typing import Tuple
 import torch.nn as nn
 import torch
 
 from math import log
-from enum import auto
-
-
-class ConditionMode(ExtendedEnum):
-    unconditional = "unconditional"
-    simple_conditioning = "simple_conditioning"
-    simple_embedding = auto()  # TODO: implement this
-    auxiliary = auto()  # TODO: implement this
 
 
 class DCGenerator(nn.Module):
@@ -22,7 +14,6 @@ class DCGenerator(nn.Module):
                  upsampling_mode: UpsamplingMode = UpsamplingMode.transposed_conv,
                  condition_mode: ConditionMode = ConditionMode.unconditional):
         super(DCGenerator, self).__init__()
-        print(condition_mode, upsampling_mode)
         # end layer has upsampling=2, first layer outputs 4x4
         num_middle_scaling_layers = int(log(img_shape[-1], 2) - 3)
 
@@ -66,8 +57,6 @@ class DCGenerator(nn.Module):
 class DCDiscriminator(nn.Module):
     def __init__(self, num_features: int, img_shape: Tuple[int], n_filters=64, condition_mode: ConditionMode = ConditionMode.unconditional, wasserstein: bool = False):
         super(DCDiscriminator, self).__init__()
-
-        print(condition_mode)
         self.input_image_size = img_shape[-1]
         # end layer has upsampling=2, first layer outputs 4x4
         num_middle_scaling_layers = int(log(self.input_image_size, 2) - 3)

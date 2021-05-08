@@ -1,16 +1,8 @@
-from src.common.helpers import ExtendedEnum
+from src.gan.outer_gan import UpsamplingMode
 from typing import Union
 import torch.nn as nn
 
-from enum import auto
-
 import torchlayers
-
-
-class UpsamplingMode(ExtendedEnum):
-    transposed_conv = auto()
-    subpixel = auto()
-    regular_conv = auto()  # TODO: implement this
 
 
 class ConvTranspose2dBlock(nn.Module):
