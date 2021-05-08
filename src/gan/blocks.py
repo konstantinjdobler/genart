@@ -37,7 +37,7 @@ class ConvTranspose2dBlock(nn.Module):
         elif upsampling_mode == UpsamplingMode.subpixel and upsampling_factor:
             self.conv_layer = torchlayers.upsample.ConvPixelShuffle(
                 in_channels, out_channels, kernel_size=kernel_size, upscale_factor=upsampling_factor)
-        elif upsampling_mode == UpsamplingMode.transposed_conv:
+        else:  # UpsamplingMode.transposed_conv or no upsampling wanted
             if upsampling_factor:
                 # This ensures output dimension are scaled up by upsampling_factor
                 stride = upsampling_factor
