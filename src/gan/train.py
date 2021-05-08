@@ -31,7 +31,7 @@ if __name__ == '__main__':
                      num_features=config.num_features, label_flipping_p=config.label_flipping_p,
                      label_smoothing=config.label_smoothing,
                      generator_type=config.generator_type, discriminator_type=config.discriminator_type,
-                     condition_mode=config.condition_mode).set_argparse_config(config)
+                     condition_mode=config.condition_mode, upsampling_mode=config.upsampling_mode).set_argparse_config(config)
 
     if config.use_checkpoint:
         model = GANClass.load_from_checkpoint(
