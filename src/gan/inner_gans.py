@@ -28,7 +28,7 @@ class DCGenerator(nn.Module):
             ConvTranspose2dBlock(in_channels=initial_in_channels,
                                  out_channels=n_filters *
                                  (2**num_middle_scaling_layers),
-                                 kernel_size=4, stride=1, padding=0, upsampling_mode=upsampling_mode),
+                                 kernel_size=4, stride=1, padding=0),
             *middle_scaling_layers,
             ConvTranspose2dBlock(in_channels=n_filters,
                                  out_channels=3, upsampling_factor=2,
