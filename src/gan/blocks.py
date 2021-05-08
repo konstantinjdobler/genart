@@ -31,7 +31,7 @@ class ConvTranspose2dBlock(nn.Module):
             # From https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/190#issuecomment-358546675
             self.conv_layer = nn.Sequential(nn.Upsample(scale_factor=upsampling_factor, mode='nearest'),
                                             nn.ReflectionPad2d(1),
-                                            nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=1, padding=0))
+                                            nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=0))
         elif upsampling_mode == UpsamplingMode.subpixel and upsampling_factor:
             self.conv_layer = nn.Sequential(nn.Conv2d(in_channels, out_channels=out_channels*(upsampling_factor**2),
                                                       kernel_size=3, stride=1, padding=1, padding_mode="reflect"), nn.PixelShuffle(upsampling_factor))
