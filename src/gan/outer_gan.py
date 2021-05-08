@@ -109,6 +109,8 @@ class GAN(pl.LightningModule):
 
     def forward(self, z, features=None):
         '''Do a whole pass through the GAN but return only the genrated images. Don't use if performance is key'''
+        print(self.generator, self.discriminator)
+
         if features is None:
             features = self.example_feature_array.type_as(z)
         generated_images = self.generator(z, features)
@@ -180,7 +182,6 @@ class GAN(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         real_imgs, features = batch
-        print(self.generator, self.discriminator)
         # train discriminator
         if optimizer_idx == 0:
             return self._discriminator_step(real_imgs, features)
