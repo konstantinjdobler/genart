@@ -63,7 +63,7 @@ def get_training_parser():
 
 
 def parse_config(parser: argparse.ArgumentParser):
-    config, _ = parser.parse_known_args()
+    config, _ = parser.parse_args()
 
     if config.cpu is True:
         config.gpus = None
