@@ -109,7 +109,7 @@ class GAN(pl.LightningModule):
 
     def forward(self, z, features=None):
         '''Do a whole pass through the GAN but return only the genrated images. Don't use if performance is key'''
-        print(self.generator, self.discriminator)
+        print(self.generator.cuda())
 
         if features is None:
             features = self.example_feature_array.type_as(z)
