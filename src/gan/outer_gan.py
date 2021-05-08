@@ -56,7 +56,6 @@ class GAN(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
         print("Using hyperparameters:\n", self.hparams)
-        print(self.device)
 
         # networks
         data_shape = (channels, width, height)
@@ -75,14 +74,13 @@ class GAN(pl.LightningModule):
             8, self.hparams.num_features)
         self.example_feature_array[self.example_feature_array <= 0] = -1
         self.example_feature_array[self.example_feature_array > 0] = 1
-        self.to(self.device)
 
     def set_argparse_config(self, config):
         '''Call before training start'''
         self.argparse_config = config
         return self
 
-    def _get_generator(self, data_shape, generator_type, condition_mode, upsampling_mode) -> nn.Module:
+    def _get_generator(self, data_shape, generator_type, condition_mode, upsampling_mode) -> DCGenerator:
         GeneratorClass = generator_dict[generator_type]
         generator = GeneratorClass(latent_dim=self.hparams.latent_dim,
                                    num_features=self.hparams.num_features, img_shape=data_shape,
@@ -90,7 +88,7 @@ class GAN(pl.LightningModule):
         generator.apply(self._weights_init)
         return generator
 
-    def _get_discriminator(self, data_shape, discriminator_type, condition_mode, wasserstein) -> nn.Module:
+    def _get_discriminator(self, data_shape, discriminator_type, condition_mode, wasserstein) -> DCDiscriminator:
         DiscriminatorClass = discriminator_dict[discriminator_type]
         discriminator = DiscriminatorClass(num_features=self.hparams.num_features, img_shape=data_shape,
                                            condition_mode=condition_mode, wasserstein=wasserstein)
@@ -182,6 +180,7 @@ class GAN(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         real_imgs, features = batch
+        print(self.generator, self.discriminator)
         # train discriminator
         if optimizer_idx == 0:
             return self._discriminator_step(real_imgs, features)
