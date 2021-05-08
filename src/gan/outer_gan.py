@@ -56,6 +56,8 @@ class GAN(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
         print("Using hyperparameters:\n", self.hparams)
+        print(self.device)
+
         # networks
         data_shape = (channels, width, height)
         self.generator = self._get_generator(
@@ -73,6 +75,7 @@ class GAN(pl.LightningModule):
             8, self.hparams.num_features)
         self.example_feature_array[self.example_feature_array <= 0] = -1
         self.example_feature_array[self.example_feature_array > 0] = 1
+        self.to(self.device)
 
     def set_argparse_config(self, config):
         '''Call before training start'''
