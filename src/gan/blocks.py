@@ -33,8 +33,8 @@ class ConvTranspose2dBlock(nn.Module):
                                             nn.ReflectionPad2d(1),
                                             nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=1, padding=0))
         elif upsampling_mode == UpsamplingMode.subpixel and upsampling_factor:
-            self.conv_layer = nn.Sequential(nn.Conv2d(in_channels, out_channels=out_channels*upsampling_factor**2,
-                                                      kernel_size=kernel_size, stride=1), nn.PixelShuffle(upsampling_factor))
+            self.conv_layer = nn.Sequential(nn.Conv2d(in_channels, out_channels=out_channels*(upsampling_factor**2),
+                                                      kernel_size=3, stride=1), nn.PixelShuffle(upsampling_factor))
         else:  # UpsamplingMode.transposed_conv or no upsampling wanted
             if upsampling_factor:
                 # This ensures output dimension are scaled up by upsampling_factor
