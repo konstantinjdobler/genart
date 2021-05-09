@@ -64,14 +64,15 @@ class GAN(pl.LightningModule):
 
         self.discriminator = self._get_discriminator(
             data_shape, discriminator_type, condition_mode, False)
-        self.validation_z = torch.randn(8, self.hparams.latent_dim, 1, 1)
+        self.validation_z = torch.randn(
+            batch_size, self.hparams.latent_dim, 1, 1)
 
         self.example_input_array = torch.zeros(
-            8, self.hparams.latent_dim, 1, 1)
+            batch_size, self.hparams.latent_dim, 1, 1)
 
         # Create example feature vector in [-1,1]
         self.example_feature_array = torch.randn(
-            8, self.hparams.num_features)
+            batch_size, self.hparams.num_features)
         self.example_feature_array[self.example_feature_array <= 0] = -1
         self.example_feature_array[self.example_feature_array > 0] = 1
 
@@ -208,7 +209,7 @@ class GAN(pl.LightningModule):
 
         # log sampled images
         sample_imgs = self.generator(z, self.example_feature_array.type_as(z))
-        grid = torchvision.utils.make_grid(sample_imgs[:6])
+        grid = torchvision.utils.make_grid(sample_imgs[:16])
         self.logger.experiment.log({'epoch_generated_images': [
             wandb.Image(grid, caption=f"Samples epoch {self.current_epoch}")]}, commit=False)
 
