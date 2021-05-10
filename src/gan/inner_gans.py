@@ -68,7 +68,8 @@ class DCDiscriminator(nn.Module):
         middle_scaling_layers = [Conv2dBlock(in_channels=n_filters * 2**i,
                                              out_channels=n_filters *
                                              2**(i + 1),
-                                             normalization=normalization_func,
+                                             normalization=normalization_func(
+                                                 i),
                                              downsampling_factor=2) for i in range(num_middle_scaling_layers)]
 
         image_in_channels = 4 if condition_mode == ConditionMode.simple_conditioning else 3
