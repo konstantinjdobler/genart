@@ -202,7 +202,7 @@ class GAN(pl.LightningModule):
 
     def on_epoch_end(self):
         # Don't log every epoch, it's too much... maybe a cmd arg later on
-        if self.current_epoch % 20 != 0:
+        if self.current_epoch % 1 != 0:
             return
         # TODO: do we need to call self.generator.eval() here?
         z = self.validation_z.to(self.device)
