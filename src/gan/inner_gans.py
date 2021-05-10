@@ -62,14 +62,13 @@ class DCDiscriminator(nn.Module):
         num_middle_scaling_layers = int(log(self.input_image_size, 2) - 3)
 
         # wasserstein cannot use the default BatchNorm
-        # normalization_func = (
-        #     lambda i: False) if wasserstein else lambda i: True
-        # print(normalization_func)
+        normalization_func = (lambda i: nn.InstanceNorm2d(n_filters * 2**(i + 1), affine=True, track_running_stats=True)
+                              ) if wasserstein else lambda i: True
         # as many scaling layers as necessary to scale to the target image size
         middle_scaling_layers = [Conv2dBlock(in_channels=n_filters * 2**i,
                                              out_channels=n_filters *
                                              2**(i + 1),
-                                             normalization=True,
+                                             normalization=normalization_func,
                                              downsampling_factor=2) for i in range(num_middle_scaling_layers)]
 
         image_in_channels = 4 if condition_mode == ConditionMode.simple_conditioning else 3
