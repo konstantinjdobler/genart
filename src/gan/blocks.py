@@ -8,7 +8,7 @@ class ConvTranspose2dBlock(nn.Module):
 
     def __init__(self, in_channels: int, out_channels: int,
                  kernel_size: int = 4,
-                 stride: int = 2, padding: int = 1, bias: bool = True,
+                 stride: int = 2, padding: int = 1, bias: bool = False,
                  upsampling_factor: int = None,  # must be divisible by 2
                  activation_function=nn.ReLU(True),
                  normalization: Union[bool, nn.Module] = True,
@@ -21,11 +21,9 @@ class ConvTranspose2dBlock(nn.Module):
         self._set_normalization_layer(out_channels, normalization)
         self.activation = activation_function
 
-    def _set_conv_layer(self, in_channels: int, out_channels: int,
-                        kernel_size: int = 4,
-                        stride: int = 2, padding: int = 1, bias: bool = True,
-                        upsampling_factor: int = None,  # must be divisible by 2
-                        upsampling_mode: UpsamplingMode = UpsamplingMode.transposed_conv):
+    def _set_conv_layer(self, in_channels: int, out_channels: int, kernel_size: int,
+                        stride: int, padding: int, bias: bool, upsampling_factor: int,
+                        upsampling_mode: UpsamplingMode):
 
         if upsampling_mode == UpsamplingMode.regular_conv and upsampling_factor:
             # From https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/issues/190#issuecomment-358546675
