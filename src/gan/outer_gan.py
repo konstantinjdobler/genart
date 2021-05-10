@@ -241,6 +241,8 @@ class WGAN_GP(GAN):
         loss = self.adversarial_loss(predictions, should_be_real=True)
         self.log('train/g_loss', loss, on_epoch=True,
                  on_step=True, logger=True, prog_bar=True)
+        self.log('train/g_fake_logits', predictions,
+                 on_step=True, on_epoch=True, prog_bar=False)
         return loss
 
     def compute_gradient_penalty(self, real_samples, fake_samples, features):
@@ -311,6 +313,10 @@ class WGAN_GP(GAN):
                  on_step=False, on_epoch=True, prog_bar=True)
         self.log('train/d_accuracy_real', real_detection_accuracy,
                  on_step=False, on_epoch=True, prog_bar=True)
+        self.log('train/d_fake_logits', fake_predictions,
+                 on_step=True, on_epoch=True, prog_bar=False)
+        self.log('train/d_real_logits', real_predictions,
+                 on_step=True, on_epoch=True, prog_bar=False)
         return d_loss
 
     def configure_optimizers(self):
