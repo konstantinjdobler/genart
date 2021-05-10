@@ -1,3 +1,5 @@
+
+from enum import Enum
 from torch.functional import Tensor
 import wandb
 
@@ -9,23 +11,30 @@ import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning.metrics.functional import accuracy
 
-from src.gan.unconditional_dc_gan import DCDiscriminator, DCGenerator, DCGeneratorRegularUpsample, DCGeneratorSubpixel, WassersteinDiscriminator
 from src.common.helpers import push_file_to_wandb, randomly_flip_labels
-from src.gan.conditional_dc_gan import cDCGenerator, cDCDiscriminator, cDCGeneratorRegularUpsample, cDCGeneratorSubpixel
+
+
+class UpsamplingMode(Enum):
+    transposed_conv = "transposed_conv"
+    subpixel = "subpixel"
+    regular_conv = "regular_conv"
+
+
+class ConditionMode(Enum):
+    unconditional = "unconditional"
+    simple_conditioning = "simple_conditioning"
+    simple_embedding = "simple_embedding"  # TODO: implement this
+    auxiliary = "auxiliary"  # TODO: implement this
+
+
+from src.gan.inner_gans import DCGenerator, DCDiscriminator  # nopep8 # avoid cyclical import error
 
 generator_dict = {
-    'cdc-subpixel': cDCGeneratorSubpixel,
-    'cdc-regular-upsample': cDCGeneratorRegularUpsample,
-    'cdc': cDCGenerator,
-    'dc-subpixel': DCGeneratorSubpixel,
-    'dc-regular-upsample': DCGeneratorRegularUpsample,
     'dc': DCGenerator
 }
 
 discriminator_dict = {
-    'cdc': cDCDiscriminator,
-    'dc': DCDiscriminator,
-    'dc-wasserstein': WassersteinDiscriminator
+    'dc': DCDiscriminator
 }
 
 
@@ -33,39 +42,37 @@ class GAN(pl.LightningModule):
 
     def __init__(
         self,
-        channels,
-        width,
-        height,
-        latent_dim,
-        num_features,
-        lr,
-        batch_size,
-        label_flipping_p,
-        label_smoothing,
-        b1=0.5,
-        b2=0.99,
-        condition=True,
-        generator_type=list(generator_dict.keys())[0],
-        discriminator_type=list(discriminator_dict.keys())[0],
+        channels: int, width: int, height: int,
+        latent_dim: int, num_features: int, lr: float,
+        batch_size: int, label_flipping_p: float,
+        label_smoothing: float, b1: float = 0.5, b2: float = 0.99,
+        generator_type: str = list(generator_dict.keys())[0],
+        discriminator_type: str = list(discriminator_dict.keys())[0],
+        condition_mode: ConditionMode = ConditionMode.unconditional,
+        upsampling_mode: UpsamplingMode = UpsamplingMode.transposed_conv,
+        wasserstein=False,
         ** kwargs
     ):
         super().__init__()
         self.save_hyperparameters()
+        print("Using hyperparameters:\n", self.hparams)
 
         # networks
         data_shape = (channels, width, height)
-        self.generator = self._get_generator(data_shape, generator_type)
+        self.generator = self._get_generator(
+            data_shape, generator_type, condition_mode, upsampling_mode)
 
         self.discriminator = self._get_discriminator(
-            data_shape, discriminator_type)
-        self.validation_z = torch.randn(8, self.hparams.latent_dim, 1, 1)
+            data_shape, discriminator_type, condition_mode, False)
+        self.validation_z = torch.randn(
+            batch_size, self.hparams.latent_dim, 1, 1)
 
         self.example_input_array = torch.zeros(
-            8, self.hparams.latent_dim, 1, 1)
+            batch_size, self.hparams.latent_dim, 1, 1)
 
         # Create example feature vector in [-1,1]
         self.example_feature_array = torch.randn(
-            8, self.hparams.num_features)
+            batch_size, self.hparams.num_features)
         self.example_feature_array[self.example_feature_array <= 0] = -1
         self.example_feature_array[self.example_feature_array > 0] = 1
 
@@ -74,20 +81,18 @@ class GAN(pl.LightningModule):
         self.argparse_config = config
         return self
 
-    def _get_generator(self, data_shape, generator_type) -> nn.Module:
+    def _get_generator(self, data_shape, generator_type, condition_mode, upsampling_mode) -> DCGenerator:
         GeneratorClass = generator_dict[generator_type]
-        print("Using generator", GeneratorClass.__name__)
         generator = GeneratorClass(latent_dim=self.hparams.latent_dim,
-                                   num_features=self.hparams.num_features, img_shape=data_shape)
+                                   num_features=self.hparams.num_features, img_shape=data_shape,
+                                   condition_mode=condition_mode, upsampling_mode=upsampling_mode)
         generator.apply(self._weights_init)
         return generator
 
-    def _get_discriminator(self, data_shape, discriminator_type) -> nn.Module:
+    def _get_discriminator(self, data_shape, discriminator_type, condition_mode, wasserstein) -> DCDiscriminator:
         DiscriminatorClass = discriminator_dict[discriminator_type]
-        print("Using discriminator", DiscriminatorClass.__name__)
-
-        discriminator = DiscriminatorClass(
-            num_features=self.hparams.num_features, img_shape=data_shape)
+        discriminator = DiscriminatorClass(num_features=self.hparams.num_features, img_shape=data_shape,
+                                           condition_mode=condition_mode, wasserstein=wasserstein)
         discriminator.apply(self._weights_init)
         return discriminator
 
@@ -196,12 +201,15 @@ class GAN(pl.LightningModule):
         return [opt_d, opt_g], []
 
     def on_epoch_end(self):
+        # Don't log every epoch, it's too much... maybe a cmd arg later on
+        if self.current_epoch % 20 != 0:
+            return
         # TODO: do we need to call self.generator.eval() here?
         z = self.validation_z.to(self.device)
 
         # log sampled images
         sample_imgs = self.generator(z, self.example_feature_array.type_as(z))
-        grid = torchvision.utils.make_grid(sample_imgs[:6])
+        grid = torchvision.utils.make_grid(sample_imgs[:16])
         self.logger.experiment.log({'epoch_generated_images': [
             wandb.Image(grid, caption=f"Samples epoch {self.current_epoch}")]}, commit=False)
 
@@ -212,13 +220,16 @@ class GAN(pl.LightningModule):
 class WGAN_GP(GAN):
     '''Based on https://github.com/nocotan/pytorch-lightning-gans/blob/master/models/wgan_gp.py'''
 
+    def __init__(self, *args, wasserstein=True, **kwargs):
+        super().__init__(*args, **kwargs, wasserstein=wasserstein)
+
     def adversarial_loss(self, predictions, should_be_real=True):
         '''The discriminator should learn to assign high values (>0, close to 1) to real images and low values (<0, clos to -1) to fake images'''
         return -torch.mean(predictions) if should_be_real else torch.mean(predictions)
 
-    def _get_discriminator(self, data_shape, discriminator_type) -> nn.Module:
+    def _get_discriminator(self, data_shape, discriminator_type, condition_mode, wasserstein) -> nn.Module:
         '''Wasserstein GANs cannot use batch norm in discriminator, so we overwrite here'''
-        return super()._get_discriminator(data_shape, discriminator_type + "-wasserstein")
+        return super()._get_discriminator(data_shape, discriminator_type, condition_mode, wasserstein=True)
 
     def _generator_step(self, real_imgs, features):
         batch_size = real_imgs.shape[0]
@@ -230,6 +241,8 @@ class WGAN_GP(GAN):
         loss = self.adversarial_loss(predictions, should_be_real=True)
         self.log('train/g_loss', loss, on_epoch=True,
                  on_step=True, logger=True, prog_bar=True)
+        self.log('train/g_fake_logits', torch.mean(predictions),
+                 on_step=True, on_epoch=True, prog_bar=False)
         return loss
 
     def compute_gradient_penalty(self, real_samples, fake_samples, features):
@@ -300,14 +313,18 @@ class WGAN_GP(GAN):
                  on_step=False, on_epoch=True, prog_bar=True)
         self.log('train/d_accuracy_real', real_detection_accuracy,
                  on_step=False, on_epoch=True, prog_bar=True)
+        self.log('train/d_fake_logits', torch.mean(fake_predictions),
+                 on_step=True, on_epoch=True, prog_bar=False)
+        self.log('train/d_real_logits', torch.mean(real_predictions),
+                 on_step=True, on_epoch=True, prog_bar=False)
         return d_loss
 
     def configure_optimizers(self):
         """Train discriminator more than generator"""
         # TODO: fix magic values
         lr = self.hparams.lr
-        b1 = self.hparams.b1
-        b2 = self.hparams.b2
+        b1 = 0  # Use zero as recomended in "Improved Training of Wasserstein GANs" # self.hparams.b1
+        b2 = 0.9  # As recomended in "Improved Training of Wasserstein GANs" # self.hparams.b2
 
         opt_g = torch.optim.Adam(
             self.generator.parameters(), lr=lr, betas=(b1, b2))
