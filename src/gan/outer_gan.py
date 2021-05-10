@@ -317,8 +317,8 @@ class WGAN_GP(GAN):
         """Train discriminator more than generator"""
         # TODO: fix magic values
         lr = self.hparams.lr
-        b1 = self.hparams.b1
-        b2 = self.hparams.b2
+        b1 = 0  # Use zero as recomended in "Improved Training of Wasserstein GANs" # self.hparams.b1
+        b2 = 0.9  # As recomended in "Improved Training of Wasserstein GANs" # self.hparams.b2
 
         opt_g = torch.optim.Adam(
             self.generator.parameters(), lr=lr, betas=(b1, b2))
