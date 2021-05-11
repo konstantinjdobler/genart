@@ -2,7 +2,7 @@ import argparse
 from datetime import datetime
 from src.gan.blocks import UpsamplingMode
 from src.gan.inner_gans import ConditionMode
-from src.gan.outer_gan import generator_dict, discriminator_dict
+from src.gan.outer_gan import Normalization, generator_dict, discriminator_dict
 from pathlib import Path
 
 
@@ -42,6 +42,8 @@ def get_training_parser():
                         help="Use label smoothing trick for discriminator. Argument determines how much labels are smoothed, 1 disables the trick.")
     parser.add_argument('--wasserstein', action='store_true',
                         help="Use Wasserstein-1 distance formulation instead of classic GAN")
+    parser.add_argument('--discriminator-normalization', type=lambda x: Normalization(x), default=None, choices=Normalization,
+                        help="Type of normalization to use for the discriminator. Default is dependent on the GAN type.")
     ###################### ------------------ #####################
     parser.add_argument('--results-dir', '-c', type=str,
                         default=f"./mnt/results/")

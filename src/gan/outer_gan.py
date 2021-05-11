@@ -20,6 +20,13 @@ class UpsamplingMode(Enum):
     regular_conv = "regular_conv"
 
 
+class Normalization(Enum):
+    batch = "batch"
+    instance = "instance"  # TODO: imlpement this
+    layer = "layer"
+    no_norm = "no_norm"
+
+
 class ConditionMode(Enum):
     unconditional = "unconditional"
     simple_conditioning = "simple_conditioning"
@@ -50,7 +57,7 @@ class GAN(pl.LightningModule):
         discriminator_type: str = list(discriminator_dict.keys())[0],
         condition_mode: ConditionMode = ConditionMode.unconditional,
         upsampling_mode: UpsamplingMode = UpsamplingMode.transposed_conv,
-        wasserstein=False,
+        discriminator_normalization: Normalization = Normalization.batch,
         ** kwargs
     ):
         super().__init__()
@@ -59,11 +66,10 @@ class GAN(pl.LightningModule):
 
         # networks
         data_shape = (channels, width, height)
-        self.generator = self._get_generator(
-            data_shape, generator_type, condition_mode, upsampling_mode)
+        self.generator = self._get_generator(data_shape, generator_type)
 
         self.discriminator = self._get_discriminator(
-            data_shape, discriminator_type, condition_mode, False)
+            data_shape, discriminator_type)
         self.validation_z = torch.randn(
             batch_size, self.hparams.latent_dim, 1, 1)
 
@@ -81,18 +87,18 @@ class GAN(pl.LightningModule):
         self.argparse_config = config
         return self
 
-    def _get_generator(self, data_shape, generator_type, condition_mode, upsampling_mode) -> DCGenerator:
+    def _get_generator(self, data_shape, generator_type) -> DCGenerator:
         GeneratorClass = generator_dict[generator_type]
         generator = GeneratorClass(latent_dim=self.hparams.latent_dim,
                                    num_features=self.hparams.num_features, img_shape=data_shape,
-                                   condition_mode=condition_mode, upsampling_mode=upsampling_mode)
+                                   condition_mode=self.hparams.condition_mode, upsampling_mode=self.hparams.upsampling_mode)
         generator.apply(self._weights_init)
         return generator
 
-    def _get_discriminator(self, data_shape, discriminator_type, condition_mode, wasserstein) -> DCDiscriminator:
+    def _get_discriminator(self, data_shape, discriminator_type) -> DCDiscriminator:
         DiscriminatorClass = discriminator_dict[discriminator_type]
         discriminator = DiscriminatorClass(num_features=self.hparams.num_features, img_shape=data_shape,
-                                           condition_mode=condition_mode, wasserstein=wasserstein)
+                                           condition_mode=self.hparams.condition_mode, normalization=self.hparams.discriminator_normalization)
         discriminator.apply(self._weights_init)
         return discriminator
 
@@ -105,8 +111,12 @@ class GAN(pl.LightningModule):
             torch.nn.init.normal_(m.weight, 1.0, 0.02)
             torch.nn.init.zeros_(m.bias)
         elif classname.find("InstanceNorm") != -1:
-            torch.nn.init.normal_(m.weight, 1.0, 0.02)
-            torch.nn.init.zeros_(m.bias)
+            try:
+                torch.nn.init.normal_(m.weight, 1.0, 0.02)
+                torch.nn.init.zeros_(m.bias)
+            except Exception as e:
+                print(
+                    e, "InstanceNorms have been created without weights. That is okay.")
 
     def forward(self, z, features=None):
         '''Do a whole pass through the GAN but return only the genrated images. Don't use if performance is key'''
@@ -220,16 +230,14 @@ class GAN(pl.LightningModule):
 class WGAN_GP(GAN):
     '''Based on https://github.com/nocotan/pytorch-lightning-gans/blob/master/models/wgan_gp.py'''
 
-    def __init__(self, *args, wasserstein=True, **kwargs):
-        super().__init__(*args, **kwargs, wasserstein=wasserstein)
+    def __init__(self, *args, b1=0, b2=0.9, discriminator_normalization=Normalization.layer, **kwargs):
+        ''' Set betas for Adam as recomended in "Improved Training of Wasserstein GANs"'''
+        super().__init__(*args, **kwargs, b1=b1, b2=b2,
+                         discriminator_normalization=discriminator_normalization)
 
     def adversarial_loss(self, predictions, should_be_real=True):
         '''The discriminator should learn to assign high values (>0, close to 1) to real images and low values (<0, clos to -1) to fake images'''
         return -torch.mean(predictions) if should_be_real else torch.mean(predictions)
-
-    def _get_discriminator(self, data_shape, discriminator_type, condition_mode, wasserstein) -> nn.Module:
-        '''Wasserstein GANs cannot use batch norm in discriminator, so we overwrite here'''
-        return super()._get_discriminator(data_shape, discriminator_type, condition_mode, wasserstein=True)
 
     def _generator_step(self, real_imgs, features):
         batch_size = real_imgs.shape[0]
@@ -323,8 +331,8 @@ class WGAN_GP(GAN):
         """Train discriminator more than generator"""
         # TODO: fix magic values
         lr = self.hparams.lr
-        b1 = 0  # Use zero as recomended in "Improved Training of Wasserstein GANs" # self.hparams.b1
-        b2 = 0.9  # As recomended in "Improved Training of Wasserstein GANs" # self.hparams.b2
+        b1 = self.hparams.b1
+        b2 = self.hparams.b2
 
         opt_g = torch.optim.Adam(
             self.generator.parameters(), lr=lr, betas=(b1, b2))

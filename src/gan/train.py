@@ -26,12 +26,18 @@ if __name__ == '__main__':
         config.data_dir, config.batch_size, config.workers, config.image_resizing, fast_debug=config.fast_debug)
 
     GANClass = WGAN_GP if config.wasserstein else GAN
-    model = GANClass(*dm.size(), lr=config.lr,
-                     batch_size=config.batch_size, latent_dim=config.latent_dim,
-                     num_features=config.num_features, label_flipping_p=config.label_flipping_p,
-                     label_smoothing=config.label_smoothing,
-                     generator_type=config.generator_type, discriminator_type=config.discriminator_type,
-                     condition_mode=config.condition_mode, upsampling_mode=config.upsampling_mode).set_argparse_config(config)
+    gan_keyword_args = dict(lr=config.lr,
+                            batch_size=config.batch_size, latent_dim=config.latent_dim,
+                            num_features=config.num_features, label_flipping_p=config.label_flipping_p,
+                            label_smoothing=config.label_smoothing,
+                            generator_type=config.generator_type, discriminator_type=config.discriminator_type,
+                            condition_mode=config.condition_mode, upsampling_mode=config.upsampling_mode,
+                            discriminator_normalization=config.discriminator_normalization)
+    # Filter out None cmd args so that they don't overwrite the default values specified in the implementation
+    filtered_keyword_args = {k: v for k,
+                             v in gan_keyword_args.items() if v is not None}
+    model = GANClass(
+        *dm.size(), **filtered_keyword_args).set_argparse_config(config)
 
     if config.use_checkpoint:
         model = GANClass.load_from_checkpoint(

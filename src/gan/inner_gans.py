@@ -1,4 +1,4 @@
-from src.gan.outer_gan import ConditionMode, UpsamplingMode
+from src.gan.outer_gan import ConditionMode, Normalization, UpsamplingMode
 from src.gan.blocks import Conv2dBlock, ConvTranspose2dBlock
 from typing import Tuple
 import torch.nn as nn
@@ -55,22 +55,39 @@ class DCGenerator(nn.Module):
 
 
 class DCDiscriminator(nn.Module):
-    def __init__(self, num_features: int, img_shape: Tuple[int], n_filters=64, condition_mode: ConditionMode = ConditionMode.unconditional, wasserstein: bool = False):
+    def __init__(self, num_features: int, img_shape: Tuple[int], n_filters=64,
+                 condition_mode: ConditionMode = ConditionMode.unconditional,
+                 normalization: Normalization = Normalization.batch):
         super(DCDiscriminator, self).__init__()
         self.input_image_size = img_shape[-1]
         # end layer has upsampling=2, first layer outputs 4x4
         num_middle_scaling_layers = int(log(self.input_image_size, 2) - 3)
 
-        # wasserstein cannot use the default BatchNorm
-        normalization_func = (lambda i: nn.InstanceNorm2d(n_filters * 2**(i + 1), affine=True, track_running_stats=True)
-                              ) if wasserstein else lambda i: True
-        # as many scaling layers as necessary to scale to the target image size
-        middle_scaling_layers = [Conv2dBlock(in_channels=n_filters * 2**i,
-                                             out_channels=n_filters *
-                                             2**(i + 1),
-                                             normalization=normalization_func(
-                                                 i),
-                                             downsampling_factor=2) for i in range(num_middle_scaling_layers)]
+        middle_scaling_layers = []
+        for i in range(num_middle_scaling_layers):
+            if normalization is Normalization.batch:
+                use_norm = True
+                bias = False
+            elif normalization is Normalization.no_norm:
+                use_norm = False
+                bias = True
+            elif normalization is Normalization.instance:
+                use_norm = nn.InstanceNorm2d(
+                    n_filters * 2**(i + 1))
+                bias = True
+            elif normalization is Normalization.layer:
+                # nn.LayerNorm is a bit weird https://github.com/pytorch/pytorch/issues/51455
+                # use GroupNorm as in https://github.com/LynnHo/DCGAN-LSGAN-WGAN-GP-DRAGAN-Pytorch/blob/master/module.py to simulate LayerNorm
+                use_norm = nn.GroupNorm(
+                    num_groups=1, num_channels=n_filters * 2**(i + 1))
+                bias = False
+
+            middle_scaling_layers.append(Conv2dBlock(in_channels=n_filters * 2**i,
+                                                     out_channels=n_filters *
+                                                     2**(i + 1),
+                                                     bias=bias,
+                                                     normalization=use_norm,
+                                                     downsampling_factor=2))
 
         image_in_channels = 4 if condition_mode == ConditionMode.simple_conditioning else 3
         self.main = nn.Sequential(
