@@ -9,7 +9,7 @@ from torch import nn
 import torch
 import numpy as np
 import pytorch_lightning as pl
-from pytorch_lightning.metrics.functional import accuracy, hamming_distance
+from torchmetrics.functional import accuracy, hamming_distance, f1
 
 from src.common.helpers import push_file_to_wandb, randomly_flip_labels
 
@@ -341,10 +341,21 @@ class WGAN_GP(GAN):
         if self.hparams.condition_mode is ConditionMode.auxiliary:
             real_loss += self.classification_loss(real_classification, labels)
             fake_loss += self.classification_loss(fake_classification, labels)
+            zero_one_labels = labels.where(
+                labels == 1, torch.tensor(0., device=self.device)).int()
+
             self.log('train/d_hamming_real',
-                     hamming_distance(torch.sigmoid(real_classification), labels.where(labels == 1, torch.tensor(0., device=self.device)).int()))
+                     hamming_distance(torch.sigmoid(real_classification), zero_one_labels))
             self.log('train/d_hamming_fake',
-                     hamming_distance(torch.sigmoid(fake_classification), labels.where(labels == 1, torch.tensor(0., device=self.device)).int()))
+                     hamming_distance(torch.sigmoid(fake_classification), zero_one_labels))
+            self.log('train/d_f1_real',
+                     f1(torch.sigmoid(real_classification), zero_one_labels, num_classes=self.hparams.num_labels))
+            self.log('train/d_f1_fake',
+                     f1(torch.sigmoid(fake_classification), zero_one_labels, num_classes=self.hparams.num_labels))
+            self.log('train/d_class_accuracy_real',
+                     accuracy(torch.sigmoid(real_classification), zero_one_labels, num_classes=self.hparams.num_labels, subset_accuracy=True))
+            self.log('train/d_class_accuracy_fake',
+                     accuracy(torch.sigmoid(fake_classification), zero_one_labels, num_classes=self.hparams.num_labels, subset_accuracy=True))
         gp = self.compute_gradient_penalty(
             real_imgs.data, fake_imgs.data, labels)
         # TODO: fix magic value
