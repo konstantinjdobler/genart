@@ -34,7 +34,7 @@ def get_training_parser():
     parser.add_argument('--lr', type=float, default=0.0002)
     parser.add_argument('--epochs', '-e', type=int, default=20)
     parser.add_argument('--batch-size', '-b', type=int, default=4)
-    parser.add_argument('--num-features', '-f', type=int, default=60)
+    parser.add_argument('--num-labels', '-f', type=int, default=20)
     parser.add_argument('--latent-dim', '-l', type=int, default=100)
     parser.add_argument('--label-flipping-p', '--lfp', type=float, default=0,
                         help="Probability for label flipping. Set to zero to disable.")

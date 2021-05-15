@@ -151,13 +151,13 @@ class AnnotatedImageDataset(Dataset):
             data = f.read()
         data = data.strip().split('\n')
 
-        # Images get normalized to [-1,1], so we want our features to be in the same value range
+        # Images get normalized to [-1,1], so we want our labels to be in the same value range
         annotation_map = {"1": 1.0, "0": -1.0}
 
         self.image_files = [
             {
                 'path': Path(image_root) / (entry.split('\t')[0] + ".jpg"),
-                'annotations': torch.FloatTensor(list(map(annotation_map.get, entry.split('\t')[12:])))
+                'annotations': torch.FloatTensor(list(map(annotation_map.get, entry.split('\t')[32:52])))
             } for entry in data[1:]
         ]
         if fast_debug:

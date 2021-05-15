@@ -48,9 +48,9 @@ class EmotionClassifier(pl.LightningModule):
         return torch.mean(torch.sum(- soft_targets * logsoftmax(pred), 1))
 
     def training_step(self, batch, batch_idx):
-        imgs, features = batch
+        imgs, labels = batch
         outputs = self.model(imgs)
-        loss = self.criterion(outputs, features)
+        loss = self.criterion(outputs, labels)
         self.log("train/loss", loss, on_epoch=True,
                  on_step=False, logger=True, prog_bar=True)
         return loss
