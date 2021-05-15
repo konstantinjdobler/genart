@@ -82,6 +82,7 @@ class GAN(pl.LightningModule):
         self.example_label_array = torch.where(
             self.example_label_array > 0, 1, -1)
 
+
     def set_argparse_config(self, config):
         '''Call before training start'''
         self.argparse_config = config
@@ -258,6 +259,7 @@ class WGAN_GP(GAN):
         else:
             predictions = self.discriminator(self.generator(z, labels), labels)
 
+
         # the generator should learn to fool the discriminator
         loss = self.adversarial_loss(predictions, should_be_real=True)
         if self.hparams.condition_mode is ConditionMode.auxiliary:
@@ -280,6 +282,7 @@ class WGAN_GP(GAN):
         interpolates = (alpha * real_samples + ((1 - alpha)
                         * fake_samples)).requires_grad_(True)
         interpolates = interpolates.to(self.device)
+
         if self.hparams.condition_mode is ConditionMode.auxiliary:
             d_interpolates, _ = self.discriminator(interpolates, labels)
         else:

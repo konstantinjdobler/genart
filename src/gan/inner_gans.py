@@ -43,6 +43,7 @@ class DCGenerator(nn.Module):
             self.latent_dim = latent_dim
             self.label_projection = nn.Linear(num_labels, latent_dim)
 
+
         # Set appropriate forward hook
         self.forward = getattr(self, f"_{condition_mode.value}_forward")
 
@@ -126,6 +127,7 @@ class DCDiscriminator(nn.Module):
                 self.feature_representation_size, num_labels)
             self.adversarial_head = nn.Linear(
                 self.feature_representation_size, 1)
+
          # Set appropriate forward hook
         self.forward = getattr(self, f"_{condition_mode.value}_forward")
 
@@ -152,3 +154,4 @@ class DCDiscriminator(nn.Module):
         classification_out = self.classification_head(
             image_feature_representation)
         return adversarial_out, classification_out
+
