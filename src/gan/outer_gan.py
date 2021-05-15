@@ -132,7 +132,7 @@ class GAN(pl.LightningModule):
 
     def classification_loss(self, y_hat, y):
         """Used by auxiliary conditioning"""
-        shifted_y = torch.where(y == -1, torch.tensor(0.),
+        shifted_y = torch.where(y == -1, torch.tensor(0., device=self.device),
                                 y)  # shift labels to [0;1]
         return F.binary_cross_entropy_with_logits(y_hat, shifted_y)
 
@@ -340,9 +340,9 @@ class WGAN_GP(GAN):
             real_loss += self.classification_loss(real_classification, labels)
             fake_loss += self.classification_loss(fake_classification, labels)
             self.log('train/d_hamming_real',
-                     hamming_distance(torch.sigmoid(real_classification), labels.where(labels == 1, torch.tensor(0.)).int()))
+                     hamming_distance(torch.sigmoid(real_classification), labels.where(labels == 1, torch.tensor(0., device=self.device)).int()))
             self.log('train/d_hamming_fake',
-                     hamming_distance(torch.sigmoid(fake_classification), labels.where(labels == 1, torch.tensor(0.)).int()))
+                     hamming_distance(torch.sigmoid(fake_classification), labels.where(labels == 1, torch.tensor(0., device=self.device)).int()))
         gp = self.compute_gradient_penalty(
             real_imgs.data, fake_imgs.data, labels)
         # TODO: fix magic value
