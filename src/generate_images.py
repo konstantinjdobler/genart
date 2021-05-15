@@ -52,8 +52,8 @@ if __name__ == "__main__":
     latent_dim = model.hparams.latent_dim
 
     z = torch.randn(config.num_images, latent_dim, 1, 1)
-    features = model.example_feature_array
-    output = model.generator(z, features)
+    labels = model.example_label_array
+    output = model.generator(z, labels)
     grid = torchvision.utils.make_grid(output)
     img = wandb.Image(grid)
     img._image.save(config.output_image)
