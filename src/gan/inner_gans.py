@@ -9,7 +9,7 @@ from math import log
 
 class DCGenerator(nn.Module):
 
-    def __init__(self, latent_dim: int, num_features: int,
+    def __init__(self, latent_dim: int, num_labels: int,
                  img_shape: Tuple[int], n_filters: int = 64,
                  upsampling_mode: UpsamplingMode = UpsamplingMode.transposed_conv,
                  condition_mode: ConditionMode = ConditionMode.unconditional):
@@ -23,7 +23,7 @@ class DCGenerator(nn.Module):
                                                       upsampling_factor=2, upsampling_mode=upsampling_mode) for i in reversed(range(num_middle_scaling_layers))]
 
         initial_in_channels = (
-            latent_dim + num_features) if condition_mode == ConditionMode.simple_conditioning else latent_dim
+            latent_dim + num_labels) if condition_mode == ConditionMode.simple_conditioning else latent_dim
         self.main = nn.Sequential(
             ConvTranspose2dBlock(in_channels=initial_in_channels,
                                  out_channels=n_filters *
@@ -37,25 +37,25 @@ class DCGenerator(nn.Module):
 
         # Do condition_mode specific setup
         if condition_mode == ConditionMode.simple_conditioning:
-            self.num_features = num_features
+            self.num_labels = num_labels
         # Set appropriate forward hook
         self.forward = getattr(self, f"_{condition_mode.value}_forward")
 
-    def forward(self, x, attr):
+    def forward(self, x, labels):
         raise NotImplementedError(
             "This should have been replaced with the appropriate forward method in the __init__ call.")
 
-    def _simple_conditioning_forward(self, x, attr):
-        attr = attr.view(-1, self.num_features, 1, 1)
-        x = torch.cat([x, attr], 1)
+    def _simple_conditioning_forward(self, x, labels):
+        labels = labels.view(-1, self.num_labels, 1, 1)
+        x = torch.cat([x, labels], 1)
         return self.main(x)
 
-    def _unconditional_forward(self, x, attr):
+    def _unconditional_forward(self, x, labels):
         return self.main(x)
 
 
 class DCDiscriminator(nn.Module):
-    def __init__(self, num_features: int, img_shape: Tuple[int], n_filters=64,
+    def __init__(self, num_labels: int, img_shape: Tuple[int], n_filters=64,
                  condition_mode: ConditionMode = ConditionMode.unconditional,
                  normalization: Normalization = Normalization.batch):
         super(DCDiscriminator, self).__init__()
@@ -99,26 +99,33 @@ class DCDiscriminator(nn.Module):
                         normalization=False, activation_function=nn.Identity()),
         )
 
-        self._setup_condition_mode(condition_mode, num_features)
+        self._setup_condition_mode(
+            condition_mode, num_labels, n_filters, num_middle_scaling_layers)
 
-    def _setup_condition_mode(self, condition_mode, num_features):
+    def _setup_condition_mode(self, condition_mode, num_labels, n_filters, num_middle_scaling_layers):
         if condition_mode == ConditionMode.simple_conditioning:
-            self.feature_input = nn.Linear(num_features,
+            self.condition_input = nn.Linear(num_labels,
                                            self.input_image_size * self.input_image_size)
+        if condition_mode == ConditionMode.auxiliary:
+            self.auxiliary_head = nn.Linear(
+                n_filters * 2**num_middle_scaling_layers, num_labels)
          # Set appropriate forward hook
         self.forward = getattr(self, f"_{condition_mode.value}_forward")
 
-    def forward(self, x, attr):
+    def forward(self, x, labels):
         raise NotImplementedError(
             "This should have been replaced with the appropriate forward method in the __init__ call.")
 
-    def _simple_conditioning_forward(self, x, attr):
-        attr = self.feature_input(
-            attr).view(-1, 1, self.input_image_size, self.input_image_size)
-        x = torch.cat([x, attr], 1)
+    def _simple_conditioning_forward(self, x, labels):
+        labels = self.condition_input(
+            labels).view(-1, 1, self.input_image_size, self.input_image_size)
+        x = torch.cat([x, labels], 1)
         return self.main(x).view(-1, 1)
 
-    def _unconditional_forward(self, x, attr):
-        '''attr is not used'''
+    def _unconditional_forward(self, x, labels):
+        '''labels is not used'''
 
         return self.main(x).view(-1, 1)
+
+    def _auxiliary_forward(x, labels):
+        '''labels is not used'''

@@ -28,7 +28,7 @@ if __name__ == '__main__':
     GANClass = WGAN_GP if config.wasserstein else GAN
     gan_keyword_args = dict(lr=config.lr,
                             batch_size=config.batch_size, latent_dim=config.latent_dim,
-                            num_features=config.num_features, label_flipping_p=config.label_flipping_p,
+                            num_labels=config.num_labels, label_flipping_p=config.label_flipping_p,
                             label_smoothing=config.label_smoothing,
                             generator_type=config.generator_type, discriminator_type=config.discriminator_type,
                             condition_mode=config.condition_mode, upsampling_mode=config.upsampling_mode,

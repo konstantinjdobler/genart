@@ -151,7 +151,7 @@ class AnnotatedImageDataset(Dataset):
             data = f.read()
         data = data.strip().split('\n')
 
-        # Images get normalized to [-1,1], so we want our features to be in the same value range
+        # Images get normalized to [-1,1], so we want our labels to be in the same value range
         annotation_map = {"1": 1.0, "0": -1.0}
 
         self.image_files = [

@@ -50,7 +50,7 @@ class GAN(pl.LightningModule):
     def __init__(
         self,
         channels: int, width: int, height: int,
-        latent_dim: int, num_features: int, lr: float,
+        latent_dim: int, num_labels: int, lr: float,
         batch_size: int, label_flipping_p: float,
         label_smoothing: float, b1: float = 0.5, b2: float = 0.99,
         generator_type: str = list(generator_dict.keys())[0],
@@ -76,11 +76,11 @@ class GAN(pl.LightningModule):
         self.example_input_array = torch.zeros(
             batch_size, self.hparams.latent_dim, 1, 1)
 
-        # Create example feature vector in [-1,1]
-        self.example_feature_array = torch.randn(
-            batch_size, self.hparams.num_features)
-        self.example_feature_array[self.example_feature_array <= 0] = -1
-        self.example_feature_array[self.example_feature_array > 0] = 1
+        # Create example label vector in [-1,1]
+        self.example_label_array = torch.randn(
+            batch_size, self.hparams.num_labels)
+        self.example_label_array[self.example_label_array <= 0] = -1
+        self.example_label_array[self.example_label_array > 0] = 1
 
     def set_argparse_config(self, config):
         '''Call before training start'''
@@ -90,14 +90,14 @@ class GAN(pl.LightningModule):
     def _get_generator(self, data_shape, generator_type) -> DCGenerator:
         GeneratorClass = generator_dict[generator_type]
         generator = GeneratorClass(latent_dim=self.hparams.latent_dim,
-                                   num_features=self.hparams.num_features, img_shape=data_shape,
+                                   num_labels=self.hparams.num_labels, img_shape=data_shape,
                                    condition_mode=self.hparams.condition_mode, upsampling_mode=self.hparams.upsampling_mode)
         generator.apply(self._weights_init)
         return generator
 
     def _get_discriminator(self, data_shape, discriminator_type) -> DCDiscriminator:
         DiscriminatorClass = discriminator_dict[discriminator_type]
-        discriminator = DiscriminatorClass(num_features=self.hparams.num_features, img_shape=data_shape,
+        discriminator = DiscriminatorClass(num_labels=self.hparams.num_labels, img_shape=data_shape,
                                            condition_mode=self.hparams.condition_mode, normalization=self.hparams.discriminator_normalization)
         discriminator.apply(self._weights_init)
         return discriminator
@@ -118,19 +118,19 @@ class GAN(pl.LightningModule):
                 print(
                     e, "InstanceNorms have been created without weights. That is okay.")
 
-    def forward(self, z, features=None):
+    def forward(self, z, labels=None):
         '''Do a whole pass through the GAN but return only the genrated images. Don't use if performance is key'''
-        if features is None:
-            features = self.example_feature_array.type_as(z)
-        generated_images = self.generator(z, features)
+        if labels is None:
+            labels = self.example_label_array.type_as(z)
+        generated_images = self.generator(z, labels)
         # Do this step to also show the discriminator in PyTorch-Lightning's automatic model summary
-        discriminator_decision = self.discriminator(generated_images, features)
+        discriminator_decision = self.discriminator(generated_images, labels)
         return generated_images
 
     def adversarial_loss(self, y_hat, y):
         return F.binary_cross_entropy_with_logits(y_hat, y)
 
-    def _generator_step(self, real_imgs, features):
+    def _generator_step(self, real_imgs, labels):
         '''Measure generators's ability to generate samples that can fool the discriminator'''
         batch_size = real_imgs.shape[0]
         z = torch.randn(batch_size, self.hparams.latent_dim,
@@ -142,12 +142,12 @@ class GAN(pl.LightningModule):
 
         # adversarial loss is binary cross-entropy
         g_loss = self.adversarial_loss(
-            self.discriminator(self.generator(z, features), features), valid_ground_truth)
+            self.discriminator(self.generator(z, labels), labels), valid_ground_truth)
         self.log('train/g_loss', g_loss, on_epoch=True,
                  on_step=True, logger=True, prog_bar=True)
         return g_loss
 
-    def _discriminator_step(self, real_imgs, features):
+    def _discriminator_step(self, real_imgs, labels):
         '''Measure discriminator's ability to differentiate between real and generated samples'''
         batch_size = real_imgs.shape[0]
 
@@ -167,14 +167,14 @@ class GAN(pl.LightningModule):
             fake_ground_truth_standard, p=self.hparams.label_flipping_p)
 
         # Measure discriminator ability to detect real images
-        real_predictions = self.discriminator(real_imgs, features)
+        real_predictions = self.discriminator(real_imgs, labels)
         real_loss = self.adversarial_loss(real_predictions, real_ground_truth)
         real_detection_accuracy = accuracy(
             torch.sigmoid(real_predictions), real_ground_truth_standard.int())
 
         # Measure discriminator ability to detect fake images
         fake_predictions = self.discriminator(
-            self.generator(z, features).detach(), features)
+            self.generator(z, labels).detach(), labels)
         fake_loss = self.adversarial_loss(fake_predictions, fake_ground_truth)
         fake_detection_accuracy = accuracy(
             torch.sigmoid(fake_predictions), fake_ground_truth_standard.int())
@@ -190,14 +190,14 @@ class GAN(pl.LightningModule):
         return d_loss
 
     def training_step(self, batch, batch_idx, optimizer_idx):
-        real_imgs, features = batch
+        real_imgs, labels = batch
         # train discriminator
         if optimizer_idx == 0:
-            return self._discriminator_step(real_imgs, features)
+            return self._discriminator_step(real_imgs, labels)
 
         # train generator
         if optimizer_idx == 1:
-            return self._generator_step(real_imgs, features)
+            return self._generator_step(real_imgs, labels)
 
     def configure_optimizers(self):
         lr = self.hparams.lr
@@ -218,7 +218,7 @@ class GAN(pl.LightningModule):
         z = self.validation_z.to(self.device)
 
         # log sampled images
-        sample_imgs = self.generator(z, self.example_feature_array.type_as(z))
+        sample_imgs = self.generator(z, self.example_label_array.type_as(z))
         grid = torchvision.utils.make_grid(sample_imgs[:16])
         self.logger.experiment.log({'epoch_generated_images': [
             wandb.Image(grid, caption=f"Samples epoch {self.current_epoch}")]}, commit=False)
@@ -239,11 +239,11 @@ class WGAN_GP(GAN):
         '''The discriminator should learn to assign high values (>0, close to 1) to real images and low values (<0, clos to -1) to fake images'''
         return -torch.mean(predictions) if should_be_real else torch.mean(predictions)
 
-    def _generator_step(self, real_imgs, features):
+    def _generator_step(self, real_imgs, labels):
         batch_size = real_imgs.shape[0]
         z = torch.randn(batch_size, self.hparams.latent_dim,
                         1, 1).type_as(real_imgs)
-        predictions = self.discriminator(self.generator(z, features), features)
+        predictions = self.discriminator(self.generator(z, labels), labels)
 
         # the generator should learn to fool the discriminator
         loss = self.adversarial_loss(predictions, should_be_real=True)
@@ -253,9 +253,9 @@ class WGAN_GP(GAN):
                  on_step=True, on_epoch=True, prog_bar=False)
         return loss
 
-    def compute_gradient_penalty(self, real_samples, fake_samples, features):
+    def compute_gradient_penalty(self, real_samples, fake_samples, labels):
         """Calculates the gradient penalty loss for WGAN GP"""
-        # Features are hacked, needs more thought
+        # labels are hacked, needs more thought
 
         # Random weight term for interpolation between real and fake samples
         alpha = torch.Tensor(np.random.random(
@@ -264,7 +264,7 @@ class WGAN_GP(GAN):
         interpolates = (alpha * real_samples + ((1 - alpha)
                         * fake_samples)).requires_grad_(True)
         interpolates = interpolates.to(self.device)
-        d_interpolates = self.discriminator(interpolates, features)
+        d_interpolates = self.discriminator(interpolates, labels)
         fake = torch.Tensor(real_samples.shape[0], 1).fill_(
             1.0).to(self.device)
         # Get gradient w.r.t. interpolates
@@ -286,7 +286,7 @@ class WGAN_GP(GAN):
         out[out > 0] = 1
         return out
 
-    def _discriminator_step(self, real_imgs, features):
+    def _discriminator_step(self, real_imgs, labels):
         '''Measure discriminator's ability to differentiate between real and generated samples'''
         batch_size = real_imgs.shape[0]
 
@@ -294,15 +294,15 @@ class WGAN_GP(GAN):
                         1, 1).type_as(real_imgs)
 
         # Measure discriminator ability to detect real images
-        real_predictions = self.discriminator(real_imgs, features)
+        real_predictions = self.discriminator(real_imgs, labels)
         real_loss = self.adversarial_loss(
             real_predictions, should_be_real=True)
         real_detection_accuracy = accuracy(
             self.discretize_discriminator_output(real_predictions), torch.ones_like(real_predictions, dtype=int))
 
         # Measure discriminator ability to detect fake images
-        fake_imgs = self.generator(z, features).detach()
-        fake_predictions = self.discriminator(fake_imgs, features)
+        fake_imgs = self.generator(z, labels).detach()
+        fake_predictions = self.discriminator(fake_imgs, labels)
         fake_loss = self.adversarial_loss(
             fake_predictions, should_be_real=False)
 
@@ -310,7 +310,7 @@ class WGAN_GP(GAN):
             self.discretize_discriminator_output(fake_predictions), torch.zeros_like(fake_predictions, dtype=int))
 
         gp = self.compute_gradient_penalty(
-            real_imgs.data, fake_imgs.data, features)
+            real_imgs.data, fake_imgs.data, labels)
         # TODO: fix magic value
         d_loss = real_loss + fake_loss + 10 * gp
         self.log('train/d_loss', d_loss, on_epoch=True,
