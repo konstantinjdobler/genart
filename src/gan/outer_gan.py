@@ -9,7 +9,7 @@ from torch import nn
 import torch
 import numpy as np
 import pytorch_lightning as pl
-from pytorch_lightning.metrics.functional import accuracy
+from pytorch_lightning.metrics.functional import accuracy, hamming_distance
 
 from src.common.helpers import push_file_to_wandb, randomly_flip_labels
 
@@ -79,8 +79,8 @@ class GAN(pl.LightningModule):
         # Create example label vector in [-1,1]
         self.example_label_array = torch.randn(
             batch_size, self.hparams.num_labels)
-        self.example_label_array[self.example_label_array <= 0] = -1
-        self.example_label_array[self.example_label_array > 0] = 1
+        self.example_label_array = torch.where(
+            self.example_label_array > 0, 1, -1)
 
     def set_argparse_config(self, config):
         '''Call before training start'''
@@ -129,6 +129,12 @@ class GAN(pl.LightningModule):
 
     def adversarial_loss(self, y_hat, y):
         return F.binary_cross_entropy_with_logits(y_hat, y)
+
+    def classification_loss(self, y_hat, y):
+        """Used by auxiliary conditioning"""
+        shifted_y = torch.where(y == -1, torch.tensor(0.),
+                                y)  # shift labels to [0;1]
+        return F.binary_cross_entropy_with_logits(y_hat, shifted_y)
 
     def _generator_step(self, real_imgs, labels):
         '''Measure generators's ability to generate samples that can fool the discriminator'''
@@ -243,10 +249,18 @@ class WGAN_GP(GAN):
         batch_size = real_imgs.shape[0]
         z = torch.randn(batch_size, self.hparams.latent_dim,
                         1, 1).type_as(real_imgs)
-        predictions = self.discriminator(self.generator(z, labels), labels)
+
+        if self.hparams.condition_mode is ConditionMode.auxiliary:
+            predictions, classification = self.discriminator(
+                self.generator(z, labels), labels)
+        else:
+            predictions = self.discriminator(self.generator(z, labels), labels)
 
         # the generator should learn to fool the discriminator
         loss = self.adversarial_loss(predictions, should_be_real=True)
+        if self.hparams.condition_mode is ConditionMode.auxiliary:
+            loss += self.classification_loss(classification, labels)
+
         self.log('train/g_loss', loss, on_epoch=True,
                  on_step=True, logger=True, prog_bar=True)
         self.log('train/g_fake_logits', torch.mean(predictions),
@@ -264,7 +278,11 @@ class WGAN_GP(GAN):
         interpolates = (alpha * real_samples + ((1 - alpha)
                         * fake_samples)).requires_grad_(True)
         interpolates = interpolates.to(self.device)
-        d_interpolates = self.discriminator(interpolates, labels)
+        if self.hparams.condition_mode is ConditionMode.auxiliary:
+            d_interpolates, _ = self.discriminator(interpolates, labels)
+        else:
+            d_interpolates = self.discriminator(interpolates, labels)
+
         fake = torch.Tensor(real_samples.shape[0], 1).fill_(
             1.0).to(self.device)
         # Get gradient w.r.t. interpolates
@@ -294,7 +312,12 @@ class WGAN_GP(GAN):
                         1, 1).type_as(real_imgs)
 
         # Measure discriminator ability to detect real images
-        real_predictions = self.discriminator(real_imgs, labels)
+        if self.hparams.condition_mode is ConditionMode.auxiliary:
+            real_predictions, real_classification = self.discriminator(
+                real_imgs, labels)
+        else:
+            real_predictions = self.discriminator(real_imgs, labels)
+
         real_loss = self.adversarial_loss(
             real_predictions, should_be_real=True)
         real_detection_accuracy = accuracy(
@@ -302,13 +325,24 @@ class WGAN_GP(GAN):
 
         # Measure discriminator ability to detect fake images
         fake_imgs = self.generator(z, labels).detach()
-        fake_predictions = self.discriminator(fake_imgs, labels)
+        if self.hparams.condition_mode is ConditionMode.auxiliary:
+            fake_predictions, fake_classification = self.discriminator(
+                fake_imgs, labels)
+        else:
+            fake_predictions = self.discriminator(fake_imgs, labels)
+
         fake_loss = self.adversarial_loss(
             fake_predictions, should_be_real=False)
-
         fake_detection_accuracy = accuracy(
             self.discretize_discriminator_output(fake_predictions), torch.zeros_like(fake_predictions, dtype=int))
 
+        if self.hparams.condition_mode is ConditionMode.auxiliary:
+            real_loss += self.classification_loss(real_classification, labels)
+            fake_loss += self.classification_loss(fake_classification, labels)
+            self.log('train/d_hamming_real',
+                     hamming_distance(torch.sigmoid(real_classification), labels.where(labels == 1, torch.tensor(0.)).int()))
+            self.log('train/d_hamming_fake',
+                     hamming_distance(torch.sigmoid(fake_classification), labels.where(labels == 1, torch.tensor(0.)).int()))
         gp = self.compute_gradient_penalty(
             real_imgs.data, fake_imgs.data, labels)
         # TODO: fix magic value
