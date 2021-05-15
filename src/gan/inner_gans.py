@@ -26,7 +26,7 @@ class DCGenerator(nn.Module):
         if condition_mode is ConditionMode.simple_conditioning:
             initial_in_channels = latent_dim + num_labels
         if condition_mode is ConditionMode.auxiliary:
-            initial_in_channels = latent_dim + num_labels * 2
+            initial_in_channels = latent_dim * 2
         self.main = nn.Sequential(
             ConvTranspose2dBlock(in_channels=initial_in_channels,
                                  out_channels=n_filters *
@@ -44,7 +44,8 @@ class DCGenerator(nn.Module):
         if condition_mode == ConditionMode.auxiliary:
             self.num_labels = num_labels
             self.latent_dim = latent_dim
-            self.label_projection = nn.Linear(num_labels, 2*num_labels)
+            self.label_projection = nn.Linear(
+                num_labels + latent_dim, 2*latent_dim)
 
         # Set appropriate forward hook
         self.forward = getattr(self, f"_{condition_mode.value}_forward")
@@ -62,10 +63,12 @@ class DCGenerator(nn.Module):
         return self.main(x)
 
     def _auxiliary_forward(self, x, labels):
-        projected_labels = self.label_projection(labels)
         merged_latent = torch.cat(
-            [x, projected_labels.view(-1, self.num_labels*2, 1, 1)], 1)
-        return self.main(merged_latent)
+            [x, labels.view(-1, self.num_labels, 1, 1)], 1).view(-1, self.num_labels + self.latent_dim)
+        projected_latent = self.label_projection(
+            merged_latent).view(-1, 2 * self.latent_dim, 1, 1)
+
+        return self.main(projected_latent)
 
 
 class DCDiscriminator(nn.Module):
