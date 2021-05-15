@@ -82,7 +82,6 @@ class GAN(pl.LightningModule):
         self.example_label_array = torch.where(
             self.example_label_array > 0, 1, -1)
 
-
     def set_argparse_config(self, config):
         '''Call before training start'''
         self.argparse_config = config
@@ -259,16 +258,19 @@ class WGAN_GP(GAN):
         else:
             predictions = self.discriminator(self.generator(z, labels), labels)
 
-
         # the generator should learn to fool the discriminator
         loss = self.adversarial_loss(predictions, should_be_real=True)
         if self.hparams.condition_mode is ConditionMode.auxiliary:
-            loss += self.classification_loss(classification, labels)
+            c_loss = self.classification_loss(classification, labels)
+            loss += c_loss
+            self.log('train/g_class_loss', c_loss,
+                     on_step=True, on_epoch=True, prog_bar=False)
 
         self.log('train/g_loss', loss, on_epoch=True,
                  on_step=True, logger=True, prog_bar=True)
         self.log('train/g_fake_logits', torch.mean(predictions),
                  on_step=True, on_epoch=True, prog_bar=False)
+
         return loss
 
     def compute_gradient_penalty(self, real_samples, fake_samples, labels):
@@ -342,8 +344,10 @@ class WGAN_GP(GAN):
             self.discretize_discriminator_output(fake_predictions), torch.zeros_like(fake_predictions, dtype=int))
 
         if self.hparams.condition_mode is ConditionMode.auxiliary:
-            real_loss += self.classification_loss(real_classification, labels)
-            fake_loss += self.classification_loss(fake_classification, labels)
+            real_c_loss = self.classification_loss(real_classification, labels)
+            fake_c_loss = self.classification_loss(fake_classification, labels)
+            real_loss += 10 * real_c_loss
+            fake_loss += 10 * fake_c_loss
             zero_one_labels = labels.where(
                 labels == 1, torch.tensor(0., device=self.device)).int()
 
@@ -359,6 +363,11 @@ class WGAN_GP(GAN):
                      accuracy(torch.sigmoid(real_classification), zero_one_labels, num_classes=self.hparams.num_labels, subset_accuracy=True))
             self.log('train/d_class_accuracy_fake',
                      accuracy(torch.sigmoid(fake_classification), zero_one_labels, num_classes=self.hparams.num_labels, subset_accuracy=True))
+            self.log('train/d_real_class_loss', real_c_loss,
+                     on_step=True, on_epoch=True, prog_bar=False)
+            self.log('train/d_fake_class_loss', fake_c_loss,
+                     on_step=True, on_epoch=True, prog_bar=False)
+
         gp = self.compute_gradient_penalty(
             real_imgs.data, fake_imgs.data, labels)
         # TODO: fix magic value
