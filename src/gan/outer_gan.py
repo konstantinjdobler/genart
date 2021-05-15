@@ -218,7 +218,9 @@ class GAN(pl.LightningModule):
 
     def on_epoch_end(self):
         # Don't log every epoch, it's too much... maybe a cmd arg later on
-        if self.current_epoch % 25 != 0:
+        # bigger image size => longer epochs => we can log more often without rate limits
+        log_interval = int((64 * 30) / self.hparams.width)
+        if self.current_epoch % log_interval != 0:
             return
         # TODO: do we need to call self.generator.eval() here?
         z = self.validation_z.to(self.device)
