@@ -54,14 +54,6 @@ if __name__ == "__main__":
     config = parser.parse_args()
     print(config)
 
-    def loadAttributes(attributesPath):
-        with open(attributesPath) as file:
-            lines = [line.rstrip() for line in file]
-        attributes = torch.FloatTensor(
-            [float(line.split(': ')[-1]) for line in lines])
-        attributes[attributes == 0] = -1
-        return attributes
-
     checkpoint_file = config.checkpoint
     if config.wandb:
         model_file = wandb.restore(checkpoint_file, run_path=config.run_path)
