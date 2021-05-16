@@ -216,10 +216,13 @@ class GAN(pl.LightningModule):
             self.discriminator.parameters(), lr=lr, betas=(b1, b2))
         return [opt_d, opt_g], []
 
-    def on_epoch_end(self):
+    def on_train_epoch_end(self, outputs):
+        epoch_length = len(outputs)
         # Don't log every epoch, it's too much... maybe a cmd arg later on
         # bigger image size => longer epochs => we can log more often without rate limits
         log_interval = int((64 * 30) / self.hparams.width)
+        if epoch_length > 150 and self.hparams.batch_size >= 64:
+            log_interval = 1
         if self.current_epoch % log_interval != 0:
             return
         # TODO: do we need to call self.generator.eval() here?
@@ -232,7 +235,9 @@ class GAN(pl.LightningModule):
             wandb.Image(grid, caption=f"Samples epoch {self.current_epoch}")]}, commit=False)
 
         # Save preliminary model to wandb in case of crash
-        push_file_to_wandb(f"{self.argparse_config.results_dir}/last.ckpt")
+        # But we seems to get errors when we do it often
+        if self.current_epoch % (3*log_interval) != 0:
+            push_file_to_wandb(f"{self.argparse_config.results_dir}/last.ckpt")
 
 
 class WGAN_GP(GAN):
