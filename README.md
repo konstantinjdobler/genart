@@ -14,7 +14,13 @@ For example: `python src/gan/train.py -d ./data/wikiart-emotions --no-wandb --cp
 To activate Weights & Biases, either put `WANDB_API_KEY=....` into a root-level `.env` file or supply it via `export WANDB_API_KEY=....` in the command line. Also, omit `--no-wandb` from the run command.
 
 If you get an error like `W ParallelNative.cpp:206] Warning:`, run `export OMP_NUM_THREADS=1` before the training command. (Still need to investigate this issue)
-
+### Training tips on score
+- Use tmux to run trainings without needing to be connected to the server all the time
+- when inside the enroot container, start trainings from _within_ the github repo (that means `cd` into the repo). This way, `wandb` can track the code version of the experiment which is very helpful
+- example command to run the training from within the repo: 
+```python
+ python3 src/gan/train.py -b 256 -i 64 --gpus 2 -w 16 -d /mnt/wikiart_emotions/ -e 10000 -n acwgan-scale --wasserstein --condition-mode auxiliary --lr 0.0001
+``` 
 ## Score Setup
 
 1. `/scratch/<HPI_USERNAME>` folder auf server erstellen 
