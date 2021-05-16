@@ -13,7 +13,8 @@ def get_training_parser():
                         default="./data/wikiart-emotions")
     parser.add_argument('--image-folder', type=str,
                         default="./data/wikiart-emotions/images")
-    parser.add_argument('--annotations-file', type=str)
+    parser.add_argument('--annotations-file', '-a', type=str,
+                        help="Path to the annotations file. If left empty Ag4 relative to data-dir is used.")
     parser.add_argument('--gpus', type=int, nargs='+', default=-1,
                         help="specify gpus to use. default is to use all available")
     parser.add_argument('--cpu', action='store_true',
@@ -22,6 +23,8 @@ def get_training_parser():
     parser.add_argument('--use-checkpoint', default=None,
                         help="If wanted, specify path to checkpoint file to load")
     parser.add_argument('--celeba', action='store_true')
+    parser.add_argument('--queries', '-q', type=str, nargs='+',
+                        help="Query the dataset with the help of pandas query")
     ##################### ------------------ #####################
     parser.add_argument('--generator-type', '--gen', default=list(generator_dict.keys())[0],
                         choices=list(generator_dict.keys()), help="Specify the type of generator that will be used.")
@@ -67,6 +70,10 @@ def get_training_parser():
 
 def parse_config(parser: argparse.ArgumentParser):
     config = parser.parse_args()
+
+    if not config.annotations_file:
+        config.annotations_file = f"{config.data_dir}/WikiArt-Emotions/WikiArt-Emotions-Ag4.tsv"
+    print("Using annotations file:", config.annotations_file)
 
     if config.cpu is True:
         config.gpus = None

@@ -6,6 +6,7 @@ import subprocess
 import random
 from torch.backends import cudnn
 from dotenv import load_dotenv
+import pandas as pd
 
 
 def get_wandb_api_key():
@@ -60,6 +61,18 @@ def randomly_flip_labels(labels, p: float = 0.05):
     return labels
 
 
+def filter_dataset(config: Namespace):
+    df = pd.read_csv(config.annotations_file, sep="\t")
+    if config.queries:
+        print("Original Dataset Length:", len(df))
+        for query in config.queries:
+            df = df.query(query)
+        print("Filtered Dataset Length:", len(df))
+    new_annotations_file = os.path.join(config.results_dir, "dataset.tsv")
+    df.to_csv(new_annotations_file, sep="\t", index=False)
+    return new_annotations_file
+
+
 def before_run(config: Namespace):
     print(f"Results will be saved to {config.results_dir}")
     os.makedirs(config.results_dir, exist_ok=True)
@@ -72,6 +85,9 @@ def before_run(config: Namespace):
         os.environ["WANDB_MODE"] = "dryrun"
 
     load_dotenv()
+
+    config.annotations_file = filter_dataset(config)
+
 
 class ExtendedEnum(Enum):
 

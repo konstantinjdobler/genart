@@ -32,7 +32,7 @@ if __name__ == '__main__':
             config.data_dir, config.batch_size, config.workers, config.image_resizing, fast_debug=config.fast_debug)
     else:
         dm = WikiArtEmotionsDataModule(
-            config.data_dir, config.batch_size, config.workers, config.image_resizing, fast_debug=config.fast_debug)
+            config.data_dir, config.annotations_file, config.batch_size, config.workers, config.image_resizing, fast_debug=config.fast_debug)
 
     GANClass = WGAN_GP if config.wasserstein else GAN
     gan_keyword_args = dict(lr=config.lr,
@@ -60,4 +60,4 @@ if __name__ == '__main__':
                                             progress_bar_refresh_rate=1, logger=logger, callbacks=[checkpoint_callback])
 
     trainer.fit(model, dm)
-    push_file_to_wandb(f"{config.results_dir}/*.ckpt")
+    push_file_to_wandb(f"{config.results_dir}/*")
