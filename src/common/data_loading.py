@@ -18,7 +18,7 @@ WIKIART_EMOTIONS_STDS = [0.22497191,
 
 class WikiArtEmotionsDataModule(pl.LightningDataModule):
 
-    def __init__(self, data_dir: str, batch_size: int, num_workers: int, image_resizing: int, fast_debug: bool = False):
+    def __init__(self, data_dir: str, annotation_path: str, batch_size: int, num_workers: int, image_resizing: int, fast_debug: bool = False):
         super().__init__()
         # check if we can use dataset resized to smaller size
         available_resizes = [dir[0].split("-")[-1]
@@ -26,8 +26,7 @@ class WikiArtEmotionsDataModule(pl.LightningDataModule):
         resize_suffix = "" if len(
             available_resizes) == 0 else f"-{min((int(size) for size in available_resizes if int(size) >= image_resizing))}"
         self.image_subfolder = Path(data_dir + f"/images{resize_suffix}")
-        self.annotation_path = Path(
-            data_dir + "/WikiArt-Emotions/WikiArt-Emotions-Ag4.tsv")
+        self.annotation_path = annotation_path
         print("Using dataset", self.image_subfolder,
               "and annotation file", self.annotation_path)
         self.data_dir = data_dir

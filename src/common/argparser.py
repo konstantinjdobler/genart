@@ -13,7 +13,8 @@ def get_training_parser():
                         default="./data/wikiart-emotions")
     parser.add_argument('--image-folder', type=str,
                         default="./data/wikiart-emotions/images")
-    parser.add_argument('--annotations-file', type=str)
+    parser.add_argument('--annotations-file', '-a', type=str,
+                        default="./data/wikiart-emotions/WikiArt-Emotions/WikiArt-Emotions-Ag4.tsv")
     parser.add_argument('--gpus', type=int, nargs='+', default=-1,
                         help="specify gpus to use. default is to use all available")
     parser.add_argument('--cpu', action='store_true',
@@ -22,6 +23,8 @@ def get_training_parser():
     parser.add_argument('--use-checkpoint', default=None,
                         help="If wanted, specify path to checkpoint file to load")
     parser.add_argument('--celeba', action='store_true')
+    parser.add_argument('--queries', '-q', type=str, nargs='+',
+                        help="Query the dataset with the help of pandas query")
     ##################### ------------------ #####################
     parser.add_argument('--generator-type', '--gen', default=list(generator_dict.keys())[0],
                         choices=list(generator_dict.keys()), help="Specify the type of generator that will be used.")
