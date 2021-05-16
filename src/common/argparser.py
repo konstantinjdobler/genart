@@ -14,7 +14,7 @@ def get_training_parser():
     parser.add_argument('--image-folder', type=str,
                         default="./data/wikiart-emotions/images")
     parser.add_argument('--annotations-file', '-a', type=str,
-                        default="./data/wikiart-emotions/WikiArt-Emotions/WikiArt-Emotions-Ag4.tsv")
+                        help="Path to the annotations file. If left empty Ag4 relative to data-dir is used.")
     parser.add_argument('--gpus', type=int, nargs='+', default=-1,
                         help="specify gpus to use. default is to use all available")
     parser.add_argument('--cpu', action='store_true',
@@ -70,6 +70,10 @@ def get_training_parser():
 
 def parse_config(parser: argparse.ArgumentParser):
     config = parser.parse_args()
+
+    if not config.annotations_file:
+        config.annotations_file = f"{config.data_dir}/WikiArt-Emotions/WikiArt-Emotions-Ag4.tsv"
+    print("Using annotations file:", config.annotations_file)
 
     if config.cpu is True:
         config.gpus = None
