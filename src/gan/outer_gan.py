@@ -262,7 +262,7 @@ class WGAN_GP(GAN):
         loss = self.adversarial_loss(predictions, should_be_real=True)
         if self.hparams.condition_mode is ConditionMode.auxiliary:
             c_loss = self.classification_loss(classification, labels)
-            loss += c_loss
+            loss += 10 * c_loss
             self.log('train/g_class_loss', c_loss,
                      on_step=True, on_epoch=True, prog_bar=False)
 
@@ -346,8 +346,8 @@ class WGAN_GP(GAN):
         if self.hparams.condition_mode is ConditionMode.auxiliary:
             real_c_loss = self.classification_loss(real_classification, labels)
             fake_c_loss = self.classification_loss(fake_classification, labels)
-            real_loss += real_c_loss
-            fake_loss += fake_c_loss
+            real_loss += 10 * real_c_loss
+            fake_loss += 10 * fake_c_loss
             zero_one_labels = labels.where(
                 labels == 1, torch.tensor(0., device=self.device)).int()
 
