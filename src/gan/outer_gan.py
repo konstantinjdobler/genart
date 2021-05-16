@@ -267,7 +267,7 @@ class WGAN_GP(GAN):
         loss = self.adversarial_loss(predictions, should_be_real=True)
         if self.hparams.condition_mode is ConditionMode.auxiliary:
             c_loss = self.classification_loss(classification, labels)
-            loss += 10 * c_loss
+            loss += 2 * c_loss
             self.log('train/g_class_loss', c_loss,
                      on_step=True, on_epoch=True, prog_bar=False)
 
