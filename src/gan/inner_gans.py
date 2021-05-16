@@ -22,8 +22,11 @@ class DCGenerator(nn.Module):
                                                       out_channels=n_filters * 2**i,
                                                       upsampling_factor=2, upsampling_mode=upsampling_mode) for i in reversed(range(num_middle_scaling_layers))]
 
-        initial_in_channels = (
-            latent_dim + num_labels) if condition_mode == ConditionMode.simple_conditioning else latent_dim
+        initial_in_channels = latent_dim
+        if condition_mode is ConditionMode.simple_conditioning:
+            initial_in_channels = latent_dim + num_labels
+        if condition_mode is ConditionMode.auxiliary:
+            initial_in_channels = latent_dim * 2
         self.main = nn.Sequential(
             ConvTranspose2dBlock(in_channels=initial_in_channels,
                                  out_channels=n_filters *
@@ -38,6 +41,12 @@ class DCGenerator(nn.Module):
         # Do condition_mode specific setup
         if condition_mode == ConditionMode.simple_conditioning:
             self.num_labels = num_labels
+        if condition_mode == ConditionMode.auxiliary:
+            self.num_labels = num_labels
+            self.latent_dim = latent_dim
+            self.label_projection = nn.Linear(
+                num_labels + latent_dim, 2*latent_dim)
+
         # Set appropriate forward hook
         self.forward = getattr(self, f"_{condition_mode.value}_forward")
 
@@ -52,6 +61,14 @@ class DCGenerator(nn.Module):
 
     def _unconditional_forward(self, x, labels):
         return self.main(x)
+
+    def _auxiliary_forward(self, x, labels):
+        merged_latent = torch.cat(
+            [x, labels.view(-1, self.num_labels, 1, 1)], 1).view(-1, self.num_labels + self.latent_dim)
+        projected_latent = self.label_projection(
+            merged_latent).view(-1, 2 * self.latent_dim, 1, 1)
+
+        return self.main(projected_latent)
 
 
 class DCDiscriminator(nn.Module):
@@ -105,10 +122,18 @@ class DCDiscriminator(nn.Module):
     def _setup_condition_mode(self, condition_mode, num_labels, n_filters, num_middle_scaling_layers):
         if condition_mode == ConditionMode.simple_conditioning:
             self.condition_input = nn.Linear(num_labels,
-                                           self.input_image_size * self.input_image_size)
+                                             self.input_image_size * self.input_image_size)
         if condition_mode == ConditionMode.auxiliary:
-            self.auxiliary_head = nn.Linear(
-                n_filters * 2**num_middle_scaling_layers, num_labels)
+            # truncate last convolution to get feature representation of image
+            self.main = self.main[:-1]
+            # n_filters * 2**num_middle_scaling_layers is the number of channels and 4**2 the spatial dimensions
+            self.feature_representation_size = n_filters * \
+                2**num_middle_scaling_layers * 4**2
+            self.classification_head = nn.Linear(
+                self.feature_representation_size, num_labels)
+            self.adversarial_head = nn.Linear(
+                self.feature_representation_size, 1)
+
          # Set appropriate forward hook
         self.forward = getattr(self, f"_{condition_mode.value}_forward")
 
@@ -127,5 +152,11 @@ class DCDiscriminator(nn.Module):
 
         return self.main(x).view(-1, 1)
 
-    def _auxiliary_forward(x, labels):
+    def _auxiliary_forward(self, x, labels):
         '''labels is not used'''
+        batch_size = x.shape[0]
+        image_feature_representation = self.main(x).view(batch_size, -1)
+        adversarial_out = self.adversarial_head(image_feature_representation)
+        classification_out = self.classification_head(
+            image_feature_representation)
+        return adversarial_out, classification_out

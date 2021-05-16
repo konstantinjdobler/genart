@@ -7,12 +7,17 @@ sys.path.insert(0, abspath(join(dirname(__file__), '../..')))  # nopep8
 import wandb
 from src.gan.outer_gan import GAN, WGAN_GP
 from src.common.helpers import push_file_to_wandb, start_wandb_logging, before_run
-from src.common.data_loading import WikiArtEmotionsDataModule
+from src.common.data_loading import CelebADataModule, WikiArtEmotionsDataModule
 from src.common.argparser import get_training_parser, parse_config
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 import pytorch_lightning as pl
 
+# https://bugs.python.org/issue43743
+# on PowerPC or RedHat Linux tehre is a bug that sometimes leads to errors when copying files, which wandb does
+# recommended fix is below
+import shutil
+shutil._USE_CP_SENDFILE = False
 
 if __name__ == '__main__':
     # Needed because of multiprocessing error in Google Colab
@@ -22,8 +27,12 @@ if __name__ == '__main__':
     before_run(config)
 
     print("Loading Data")
-    dm = WikiArtEmotionsDataModule(
-        config.data_dir, config.batch_size, config.workers, config.image_resizing, fast_debug=config.fast_debug)
+    if config.celeba:
+        dm = CelebADataModule(
+            config.data_dir, config.batch_size, config.workers, config.image_resizing, fast_debug=config.fast_debug)
+    else:
+        dm = WikiArtEmotionsDataModule(
+            config.data_dir, config.batch_size, config.workers, config.image_resizing, fast_debug=config.fast_debug)
 
     GANClass = WGAN_GP if config.wasserstein else GAN
     gan_keyword_args = dict(lr=config.lr,

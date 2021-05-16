@@ -9,6 +9,7 @@ import torchvision
 import wandb
 from emotion_classifier.emotion_classifier import EmotionClassifier
 from src.gan.outer_gan import GAN, WGAN_GP
+from src.common.condition_helpers import emotions, faces
 
 class_names = {
     "gan": GAN,
@@ -33,6 +34,19 @@ parser.add_argument('--num-images', '-n', type=int,
                     default=64, help="Number of images to generate.")
 parser.add_argument('--output-image', '-o', type=str,
                     default="output/image.png", help="Location of output image.")
+parser.add_argument('--condition-template', type=str, default="emotions",
+                    help="parse conditions from file OR use to specify conditions type: emotions or faces")
+parser.add_argument('--conditions', type=str, nargs="+", default=[],
+                    help="specify conditions by cmd arg")
+
+
+def loadAttributes(attributesPath):
+    with open(attributesPath) as file:
+        lines = [line.rstrip() for line in file]
+    attributes = torch.FloatTensor(
+        [float(line.split(': ')[-1]) for line in lines])
+    attributes[attributes == 0] = -1
+    return attributes
 
 
 if __name__ == "__main__":
@@ -52,7 +66,20 @@ if __name__ == "__main__":
     latent_dim = model.hparams.latent_dim
 
     z = torch.randn(config.num_images, latent_dim, 1, 1)
-    labels = model.example_label_array
+    if config.conditions:
+        condition_template = emotions if config.condition_template == "emotions" else faces
+        for cond_name in config.conditions:
+            condition_template[cond_name] = 1
+        labels = torch.cat(config.num_images *
+                           [torch.FloatTensor(list(condition_template.values()))])
+        if config.output_image == "output/image.png":
+            config.output_image = "output/" + \
+                "_".join(config.conditions) + ".png"
+    elif config.condition_file:
+        labels = torch.cat(config.num_images *
+                           [loadAttributes(config.condition_file)])
+    else:
+        labels = model.example_label_array
     output = model.generator(z, labels)
     grid = torchvision.utils.make_grid(output)
     img = wandb.Image(grid)

@@ -157,7 +157,7 @@ class AnnotatedImageDataset(Dataset):
         self.image_files = [
             {
                 'path': Path(image_root) / (entry.split('\t')[0] + ".jpg"),
-                'annotations': torch.FloatTensor(list(map(annotation_map.get, entry.split('\t')[12:])))
+                'annotations': torch.FloatTensor(list(map(annotation_map.get, entry.split('\t')[32:52])))
             } for entry in data[1:]
         ]
         if fast_debug:

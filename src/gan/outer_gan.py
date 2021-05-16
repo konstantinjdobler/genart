@@ -9,7 +9,7 @@ from torch import nn
 import torch
 import numpy as np
 import pytorch_lightning as pl
-from pytorch_lightning.metrics.functional import accuracy
+from torchmetrics.functional import accuracy, hamming_distance, f1
 
 from src.common.helpers import push_file_to_wandb, randomly_flip_labels
 
@@ -79,8 +79,8 @@ class GAN(pl.LightningModule):
         # Create example label vector in [-1,1]
         self.example_label_array = torch.randn(
             batch_size, self.hparams.num_labels)
-        self.example_label_array[self.example_label_array <= 0] = -1
-        self.example_label_array[self.example_label_array > 0] = 1
+        self.example_label_array = torch.where(
+            self.example_label_array > 0, 1, -1)
 
     def set_argparse_config(self, config):
         '''Call before training start'''
@@ -129,6 +129,12 @@ class GAN(pl.LightningModule):
 
     def adversarial_loss(self, y_hat, y):
         return F.binary_cross_entropy_with_logits(y_hat, y)
+
+    def classification_loss(self, y_hat, y):
+        """Used by auxiliary conditioning"""
+        shifted_y = torch.where(y == -1, torch.tensor(0., device=self.device),
+                                y)  # shift labels to [0;1]
+        return F.binary_cross_entropy_with_logits(y_hat, shifted_y)
 
     def _generator_step(self, real_imgs, labels):
         '''Measure generators's ability to generate samples that can fool the discriminator'''
@@ -210,9 +216,14 @@ class GAN(pl.LightningModule):
             self.discriminator.parameters(), lr=lr, betas=(b1, b2))
         return [opt_d, opt_g], []
 
-    def on_epoch_end(self):
+    def on_train_epoch_end(self, outputs):
+        epoch_length = len(outputs[0])
         # Don't log every epoch, it's too much... maybe a cmd arg later on
-        if self.current_epoch % 20 != 0:
+        # bigger image size => longer epochs => we can log more often without rate limits
+        log_interval = int((64 * 30) / self.hparams.width)
+        if epoch_length > 150 and self.hparams.batch_size >= 64:
+            log_interval = 1
+        if self.current_epoch % log_interval != 0:
             return
         # TODO: do we need to call self.generator.eval() here?
         z = self.validation_z.to(self.device)
@@ -224,7 +235,9 @@ class GAN(pl.LightningModule):
             wandb.Image(grid, caption=f"Samples epoch {self.current_epoch}")]}, commit=False)
 
         # Save preliminary model to wandb in case of crash
-        push_file_to_wandb(f"{self.argparse_config.results_dir}/last.ckpt")
+        # But we seems to get errors when we do it often
+        if self.current_epoch % (3*log_interval) != 0:
+            push_file_to_wandb(f"{self.argparse_config.results_dir}/last.ckpt")
 
 
 class WGAN_GP(GAN):
@@ -243,14 +256,26 @@ class WGAN_GP(GAN):
         batch_size = real_imgs.shape[0]
         z = torch.randn(batch_size, self.hparams.latent_dim,
                         1, 1).type_as(real_imgs)
-        predictions = self.discriminator(self.generator(z, labels), labels)
+
+        if self.hparams.condition_mode is ConditionMode.auxiliary:
+            predictions, classification = self.discriminator(
+                self.generator(z, labels), labels)
+        else:
+            predictions = self.discriminator(self.generator(z, labels), labels)
 
         # the generator should learn to fool the discriminator
         loss = self.adversarial_loss(predictions, should_be_real=True)
+        if self.hparams.condition_mode is ConditionMode.auxiliary:
+            c_loss = self.classification_loss(classification, labels)
+            loss += c_loss
+            self.log('train/g_class_loss', c_loss,
+                     on_step=True, on_epoch=True, prog_bar=False)
+
         self.log('train/g_loss', loss, on_epoch=True,
                  on_step=True, logger=True, prog_bar=True)
         self.log('train/g_fake_logits', torch.mean(predictions),
                  on_step=True, on_epoch=True, prog_bar=False)
+
         return loss
 
     def compute_gradient_penalty(self, real_samples, fake_samples, labels):
@@ -264,7 +289,12 @@ class WGAN_GP(GAN):
         interpolates = (alpha * real_samples + ((1 - alpha)
                         * fake_samples)).requires_grad_(True)
         interpolates = interpolates.to(self.device)
-        d_interpolates = self.discriminator(interpolates, labels)
+
+        if self.hparams.condition_mode is ConditionMode.auxiliary:
+            d_interpolates, _ = self.discriminator(interpolates, labels)
+        else:
+            d_interpolates = self.discriminator(interpolates, labels)
+
         fake = torch.Tensor(real_samples.shape[0], 1).fill_(
             1.0).to(self.device)
         # Get gradient w.r.t. interpolates
@@ -294,7 +324,12 @@ class WGAN_GP(GAN):
                         1, 1).type_as(real_imgs)
 
         # Measure discriminator ability to detect real images
-        real_predictions = self.discriminator(real_imgs, labels)
+        if self.hparams.condition_mode is ConditionMode.auxiliary:
+            real_predictions, real_classification = self.discriminator(
+                real_imgs, labels)
+        else:
+            real_predictions = self.discriminator(real_imgs, labels)
+
         real_loss = self.adversarial_loss(
             real_predictions, should_be_real=True)
         real_detection_accuracy = accuracy(
@@ -302,12 +337,41 @@ class WGAN_GP(GAN):
 
         # Measure discriminator ability to detect fake images
         fake_imgs = self.generator(z, labels).detach()
-        fake_predictions = self.discriminator(fake_imgs, labels)
+        if self.hparams.condition_mode is ConditionMode.auxiliary:
+            fake_predictions, fake_classification = self.discriminator(
+                fake_imgs, labels)
+        else:
+            fake_predictions = self.discriminator(fake_imgs, labels)
+
         fake_loss = self.adversarial_loss(
             fake_predictions, should_be_real=False)
-
         fake_detection_accuracy = accuracy(
             self.discretize_discriminator_output(fake_predictions), torch.zeros_like(fake_predictions, dtype=int))
+
+        if self.hparams.condition_mode is ConditionMode.auxiliary:
+            real_c_loss = self.classification_loss(real_classification, labels)
+            fake_c_loss = self.classification_loss(fake_classification, labels)
+            real_loss += 10 * real_c_loss
+            fake_loss += 10 * fake_c_loss
+            zero_one_labels = labels.where(
+                labels == 1, torch.tensor(0., device=self.device)).int()
+
+            self.log('train/d_hamming_real',
+                     hamming_distance(torch.sigmoid(real_classification), zero_one_labels))
+            self.log('train/d_hamming_fake',
+                     hamming_distance(torch.sigmoid(fake_classification), zero_one_labels))
+            self.log('train/d_f1_real',
+                     f1(torch.sigmoid(real_classification), zero_one_labels, num_classes=self.hparams.num_labels))
+            self.log('train/d_f1_fake',
+                     f1(torch.sigmoid(fake_classification), zero_one_labels, num_classes=self.hparams.num_labels))
+            self.log('train/d_class_accuracy_real',
+                     accuracy(torch.sigmoid(real_classification), zero_one_labels, num_classes=self.hparams.num_labels, subset_accuracy=True))
+            self.log('train/d_class_accuracy_fake',
+                     accuracy(torch.sigmoid(fake_classification), zero_one_labels, num_classes=self.hparams.num_labels, subset_accuracy=True))
+            self.log('train/d_real_class_loss', real_c_loss,
+                     on_step=True, on_epoch=True, prog_bar=False)
+            self.log('train/d_fake_class_loss', fake_c_loss,
+                     on_step=True, on_epoch=True, prog_bar=False)
 
         gp = self.compute_gradient_penalty(
             real_imgs.data, fake_imgs.data, labels)
