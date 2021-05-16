@@ -76,8 +76,8 @@ if __name__ == "__main__":
     z = torch.randn(config.num_images, latent_dim, 1, 1)
     if config.conditions:
         condition_template = emotions if config.condition_template == "emotions" else faces
-        for condi in config.conditions:
-            condition_template[condi] = 1
+        for cond_name in config.conditions:
+            condition_template[cond_name] = 1
         labels = torch.cat(config.num_images *
                            [torch.FloatTensor(list(condition_template.values()))])
         if config.output_image == "output/image.png":
@@ -86,14 +86,6 @@ if __name__ == "__main__":
     elif config.condition_file:
         labels = torch.cat(config.num_images *
                            [loadAttributes(config.condition_file)])
-    elif config.conditions:
-        for condi in config.conditions:
-            emotions[condi] = 1
-        labels = torch.cat(config.num_images *
-                           [torch.FloatTensor(list(emotions.values()))])
-        if config.output_image == "output/image.png":
-            config.output_image = "output/" + \
-                "_".join(config.conditions) + ".png"
     else:
         labels = model.example_label_array
     output = model.generator(z, labels)
