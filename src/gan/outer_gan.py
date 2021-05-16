@@ -222,8 +222,10 @@ class GAN(pl.LightningModule):
         # bigger image size => longer epochs => we can log more often without rate limits
         log_interval = int((64 * 30) / self.hparams.width)
         if epoch_length > 150 and self.hparams.batch_size >= 64:
+            print("got ere")
             log_interval = 1
         if self.current_epoch % log_interval != 0:
+            print("ret")
             return
         # TODO: do we need to call self.generator.eval() here?
         z = self.validation_z.to(self.device)
@@ -267,7 +269,7 @@ class WGAN_GP(GAN):
         loss = self.adversarial_loss(predictions, should_be_real=True)
         if self.hparams.condition_mode is ConditionMode.auxiliary:
             c_loss = self.classification_loss(classification, labels)
-            loss += 2 * c_loss
+            loss += c_loss
             self.log('train/g_class_loss', c_loss,
                      on_step=True, on_epoch=True, prog_bar=False)
 
