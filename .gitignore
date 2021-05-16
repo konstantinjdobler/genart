@@ -6,7 +6,7 @@ events.out.tfevents*
 lightning_logs
 results
 .DS_Store
-
+output
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
