@@ -218,7 +218,7 @@ class GAN(pl.LightningModule):
 
     def on_train_epoch_end(self, outputs):
         epoch_length = len(outputs)
-        print(epoch_length)
+        print(epoch_length, outputs)
         # Don't log every epoch, it's too much... maybe a cmd arg later on
         # bigger image size => longer epochs => we can log more often without rate limits
         log_interval = int((64 * 30) / self.hparams.width)
