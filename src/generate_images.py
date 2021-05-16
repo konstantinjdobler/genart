@@ -1,7 +1,6 @@
 # Fix imports and prevent formatting
 import sys  # nopep8
-from os.path import dirname, join, abspath
-from typing import OrderedDict  # nopep8
+from os.path import dirname, join, abspath  # nopep8
 sys.path.insert(0, abspath(join(dirname(__file__), '..')))  # nopep8
 
 import argparse
