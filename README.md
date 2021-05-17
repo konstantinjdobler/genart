@@ -21,6 +21,15 @@ If you get an error like `W ParallelNative.cpp:206] Warning:`, run `export OMP_N
 ```python
  python3 src/gan/train.py -b 256 -i 64 --gpus 2 -w 16 -d /mnt/wikiart_emotions/ -e 10000 -n acwgan-scale --wasserstein --condition-mode auxiliary --lr 0.0001
 ``` 
+- Fix sporadic bug in wandb on centos linux distros:
+  - `vi /usr/local/lib/python3.8/site-packages/wandb/filesync/step_checksum.py` when you are in the container
+  - Paste the following code snippet under the import statements in that file
+    ```python
+    import distro
+    if distro.id() == "centos":
+      print("Falling back on slower copy method because of OS incompatibility")
+      shutil._USE_CP_SENDFILE = False
+    ```
 ## Score Setup
 
 1. `/scratch/<HPI_USERNAME>` folder auf server erstellen 
