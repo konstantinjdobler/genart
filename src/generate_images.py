@@ -75,9 +75,9 @@ if __name__ == "__main__":
         if config.output_image == "output/image.png":
             config.output_image = "output/" + \
                 "_".join(config.conditions) + ".png"
-    elif config.condition_file:
+    elif config.condition_template:
         labels = torch.cat(config.num_images *
-                           [loadAttributes(config.condition_file)])
+                           [loadAttributes(config.condition_template)])
     else:
         labels = model.example_label_array
     output = model.generator(z, labels)

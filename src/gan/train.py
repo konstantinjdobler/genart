@@ -14,7 +14,7 @@ from pytorch_lightning.loggers import WandbLogger
 import pytorch_lightning as pl
 
 # https://bugs.python.org/issue43743
-# on PowerPC or RedHat Linux tehre is a bug that sometimes leads to errors when copying files, which wandb does
+# on PowerPC or RedHat Linux there is a bug that sometimes leads to errors when copying files, which wandb does
 # recommended fix is below
 import shutil
 shutil._USE_CP_SENDFILE = False

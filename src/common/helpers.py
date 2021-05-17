@@ -85,8 +85,8 @@ def before_run(config: Namespace):
         os.environ["WANDB_MODE"] = "dryrun"
 
     load_dotenv()
-
-    config.annotations_file = filter_dataset(config)
+    if not config.celeba:
+        config.annotations_file = filter_dataset(config)
 
 
 class ExtendedEnum(Enum):
