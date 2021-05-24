@@ -81,6 +81,7 @@ class GAN(pl.LightningModule):
             batch_size, self.hparams.num_labels)
         self.example_label_array = torch.where(
             self.example_label_array > 0, 1, -1)
+        self.real_label_substitution_completed = False
 
     def set_argparse_config(self, config):
         '''Call before training start'''
@@ -197,6 +198,9 @@ class GAN(pl.LightningModule):
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         real_imgs, labels = batch
+        if not self.real_label_substitution_completed:
+            self.example_label_array = labels
+            self.real_label_substitution_completed = True
         # train discriminator
         if optimizer_idx == 0:
             return self._discriminator_step(real_imgs, labels)
