@@ -52,7 +52,7 @@ def get_training_parser():
     parser.add_argument('--results-dir', '-c', type=str,
                         default=f"./mnt/results/")
     parser.add_argument('--wandb-project-name', '-wpn', type=str,
-                        help='Name of the project in wandb to log to', default='genart-spike')
+                        help='Name of the project in wandb to log to', default='genart-success')
     parser.add_argument('--training-name', '-n', type=str,
                         help='Name you want to use for this training run, will be used in '
                         'log and model saving.', default=datetime.now().strftime('%d-%m-%Y_%H_%M_%S'))
