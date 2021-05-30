@@ -22,6 +22,8 @@ def get_training_parser():
     parser.add_argument('--workers', '-w', type=int, default=4)
     parser.add_argument('--use-checkpoint', default=None,
                         help="If wanted, specify path to checkpoint file to load")
+    parser.add_argument('--transfer-learning', default=None,
+                        help="If wanted, specify path to checkpoint file to load for transfer learning")
     parser.add_argument('--celeba', action='store_true')
     parser.add_argument('--cs-chan', action='store_true')
 

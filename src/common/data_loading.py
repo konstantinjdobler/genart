@@ -149,7 +149,7 @@ class CSChanImageDataset(Dataset):
         # Images get normalized to [-1,1], so we want our labels to be in the same value range
         self.image_files = []
         for entry in data:
-            annotation_map = OrderedDict([("Abstract_Expressionism", -1.0), ("Action_painting", -1.0), ("Analytical_Cubism", -1.0), ("Art_Nouveau", -1.0), ("Baroque", -1.0), ("Color_Field_Painting", -1.0), ("Contemporary_Realism", -1.0), ("Cubism", -1.0), ("Early_Renaissance", -1.0), ("Expressionism", -1.0), ("Fauvism", -1.0), ("High_Renaissance", -1.0), ("Impressionism", -1.0),
+            annotation_map = OrderedDict([("Abstract_Expressionism", -1.0), ("Action_painting", -1.0), ("Analytical_Cubism", -1.0), ("Art_Nouveau_Modern", -1.0), ("Baroque", -1.0), ("Color_Field_Painting", -1.0), ("Contemporary_Realism", -1.0), ("Cubism", -1.0), ("Early_Renaissance", -1.0), ("Expressionism", -1.0), ("Fauvism", -1.0), ("High_Renaissance", -1.0), ("Impressionism", -1.0),
                                          ("Mannerism_Late_Renaissance", -1.0), ("Minimalism", -1.0), ("Naive_Art_Primitivism", -1.0), ("New_Realism", -1.0), ("Northern_Renaissance", -1.0), ("Pointillism", -1.0), ("Pop_Art", -1.0), ("Post_Impressionism", -1.0), ("Realism", -1.0), ("Rococo", -1.0), ("Romanticism", -1.0), ("Symbolism", -1.0), ("Synthetic_Cubism", -1.0), ("Ukiyo_e", -1.0)])
             if float(entry.split(',')[1]) == 6:
                 annotation_map[entry.split('/')[0]] = 1.0

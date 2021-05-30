@@ -53,7 +53,10 @@ if __name__ == '__main__':
 
     if config.use_checkpoint:
         model = GANClass.load_from_checkpoint(
-            config.use_checkpoint, strict=False).set_argparse_config(config)
+            config.use_checkpoint).set_argparse_config(config)
+    if config.transfer_learning:
+        model = GANClass.load_from_checkpoint(
+            config.use_checkpoint, strict=False, **filtered_keyword_args).set_argparse_config(config)
     start_wandb_logging(config, model, project=config.wandb_project_name)
     logger = WandbLogger(project=config.wandb_project_name,
                          experiment=wandb.run)
