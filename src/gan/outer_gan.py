@@ -31,7 +31,7 @@ class ConditionMode(Enum):
     unconditional = "unconditional"
     simple_conditioning = "simple_conditioning"
     simple_embedding = "simple_embedding"  # TODO: implement this
-    auxiliary = "auxiliary"  # TODO: implement this
+    auxiliary = "auxiliary"
 
 
 from src.gan.inner_gans import DCGenerator, DCDiscriminator  # nopep8 # avoid cyclical import error
