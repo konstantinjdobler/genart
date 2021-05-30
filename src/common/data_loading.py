@@ -118,8 +118,7 @@ class CSChanDataModule(pl.LightningDataModule):
         self.transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-            transforms.Resize(self.image_size),
-            transforms.RandomCrop(self.image_size),
+            transforms.Resize((self.image_size, self.image_size)),
             transforms.RandomHorizontalFlip()
         ])
 
