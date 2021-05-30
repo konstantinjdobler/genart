@@ -73,7 +73,8 @@ def downloader(link, genre, output_dir):
     savepath = '%s/%s/%s' % (output_dir, genre, filepath[-1])
     try:
         time.sleep(0.2)  # try not to get a 403
-        urllib.request.urlretrieve(file, savepath)
+
+        urllib.request.urlretrieve(urllib.parse.quote(file, safe=':/'), savepath)
         num_downloaded += 1
         if num_downloaded % 100 == 0:
             print('downloaded number %d / %d...' %
