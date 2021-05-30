@@ -23,6 +23,8 @@ def get_training_parser():
     parser.add_argument('--use-checkpoint', default=None,
                         help="If wanted, specify path to checkpoint file to load")
     parser.add_argument('--celeba', action='store_true')
+    parser.add_argument('--cs-chan', action='store_true')
+
     parser.add_argument('--queries', '-q', type=str, nargs='+',
                         help="Query the dataset with the help of pandas query")
     ##################### ------------------ #####################
