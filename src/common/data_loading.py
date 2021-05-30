@@ -166,7 +166,7 @@ class CSChanImageDataset(Dataset):
     def __getitem__(self, index):
         img_data = self.image_files[index]
 
-        img = Image.open(str(img_data['path']))
+        img = Image.open(img_data['path'])
         if self.transform:
             img = self.transform(img)
         return img, img_data['annotations']
