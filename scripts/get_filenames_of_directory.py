@@ -17,7 +17,7 @@ print(config)
 
 write_file = config.file
 prefix = config.prefix_constraint
-postfix = config.post_constraint
+postfix = config.postfix_constraint
 
 f = open(write_file, "w")
 f.close()
