@@ -31,8 +31,8 @@ if __name__ == '__main__':
         dm = CelebADataModule(
             config.data_dir, config.batch_size, config.workers, config.image_resizing, fast_debug=config.fast_debug)
     elif config.artemis:
-        dm = ArtEmisDataModule(config.data_dir, config.batch_size, config.workers,
-                               config.image_resizing, fast_debug=config.fast_debug)
+        dm = ArtEmisDataModule(config.data_dir, config.annotations_file, config.batch_size,
+                               config.workers, config.image_resizing, fast_debug=config.fast_debug)
     else:
         dm = WikiArtEmotionsDataModule(
             config.data_dir, config.annotations_file, config.batch_size, config.workers, config.image_resizing, fast_debug=config.fast_debug)
