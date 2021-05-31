@@ -128,7 +128,7 @@ class CSChanDataModule(pl.LightningDataModule):
         self.dims = (3, self.image_size, self.image_size)
         # self.num_classes = 10
 
-    def setup(self):
+    def setup(self, stage):
         self.train_set = CSChanImageDataset(str(self.image_subfolder), str(
             self.annotation_path), transform=self.transform, fast_debug=self.fast_debug)
 
