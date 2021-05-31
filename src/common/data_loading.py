@@ -277,7 +277,7 @@ class ArtEmisDataModule(pl.LightningDataModule):
 
 class ArtEmisAnnotatedImageDataset(Dataset):
     def __init__(self, image_root, annotation_file, transform, fast_debug):
-        super(AnnotatedImageDataset, self).__init__()
+        super(ArtEmisAnnotatedImageDataset, self).__init__()
         self.transform = transform
 
         with open(annotation_file, 'r') as f:
