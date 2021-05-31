@@ -221,6 +221,7 @@ class GAN(pl.LightningModule):
             self.discriminator.parameters(), lr=lr, betas=(b1, b2))
         return [opt_d, opt_g], []
 
+    @rank_zero_only()
     def on_train_epoch_end(self, outputs):
         epoch_length = len(outputs[0])
         # Don't log every epoch, it's too much... maybe a cmd arg later on
