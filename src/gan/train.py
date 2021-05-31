@@ -7,7 +7,7 @@ sys.path.insert(0, abspath(join(dirname(__file__), '../..')))  # nopep8
 import wandb
 from src.gan.outer_gan import GAN, WGAN_GP
 from src.common.helpers import push_file_to_wandb, start_wandb_logging, before_run
-from src.common.data_loading import CelebADataModule, WikiArtEmotionsDataModule
+from src.common.data_loading import CelebADataModule, WikiArtEmotionsDataModule, ArtEmisDataModule
 from src.common.argparser import get_training_parser, parse_config
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
@@ -30,6 +30,9 @@ if __name__ == '__main__':
     if config.celeba:
         dm = CelebADataModule(
             config.data_dir, config.batch_size, config.workers, config.image_resizing, fast_debug=config.fast_debug)
+    elif config.artemis:
+        dm = ArtEmisDataModule(config.data_dir, config.batch_size, config.workers,
+                               config.image_resizing, fast_debug=config.fast_debug)
     else:
         dm = WikiArtEmotionsDataModule(
             config.data_dir, config.annotations_file, config.batch_size, config.workers, config.image_resizing, fast_debug=config.fast_debug)
