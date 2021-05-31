@@ -291,7 +291,7 @@ class ArtEmisAnnotatedImageDataset(Dataset):
         self.image_files = [
             {
                 'path': Path(image_root) / "-".join(entry.split("/")[-2:]),
-                'annotations': np.zeros(20)
+                'annotations': torch.FloatTensor(np.zeros(20))
             } for entry in data[1:]
         ]
         if fast_debug:
