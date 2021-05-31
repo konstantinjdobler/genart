@@ -62,7 +62,7 @@ if __name__ == '__main__':
                          experiment=wandb.run)
     checkpoint_callback = ModelCheckpoint(
         dirpath=config.results_dir, save_last=True)
-    trainer = pl.Trainer.from_argparse_args(config, gpus=config.gpus, max_epochs=config.epochs,
+    trainer = pl.Trainer.from_argparse_args(config, gpus=config.gpus, max_epochs=config.epochs, accelerator='ddp',
                                             progress_bar_refresh_rate=1, logger=logger, callbacks=[checkpoint_callback])
 
     trainer.fit(model, dm)
