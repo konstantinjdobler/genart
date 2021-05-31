@@ -1,6 +1,8 @@
 # Fix imports and prevent formatting
 import sys  # nopep8
-from os.path import dirname, join, abspath  # nopep8
+from os.path import dirname, join, abspath
+from pytorch_lightning.loggers.base import rank_zero_experiment
+from pytorch_lightning.utilities.distributed import rank_zero_only  # nopep8
 sys.path.insert(0, abspath(join(dirname(__file__), '../..')))  # nopep8
 
 
@@ -25,7 +27,6 @@ if __name__ == '__main__':
     parser = get_training_parser()
     config = parse_config(parser)
     before_run(config)
-
     print("Loading Data")
     if config.celeba:
         dm = CelebADataModule(
@@ -57,7 +58,9 @@ if __name__ == '__main__':
     if config.transfer_learning:
         model = GANClass.load_from_checkpoint(
             config.transfer_learning, strict=False, **filtered_keyword_args).set_argparse_config(config)
-    start_wandb_logging(config, model, project=config.wandb_project_name)
+
+    if rank_zero_only.rank == 0:
+        start_wandb_logging(config, model, project=config.wandb_project_name)
     logger = WandbLogger(project=config.wandb_project_name,
                          experiment=wandb.run)
     checkpoint_callback = ModelCheckpoint(
@@ -66,4 +69,5 @@ if __name__ == '__main__':
                                             progress_bar_refresh_rate=1, logger=logger, callbacks=[checkpoint_callback])
 
     trainer.fit(model, dm)
-    push_file_to_wandb(f"{config.results_dir}/*")
+    if rank_zero_only.rank == 0:
+        push_file_to_wandb(f"{config.results_dir}/*")
