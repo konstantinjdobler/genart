@@ -1,7 +1,6 @@
 # Fix imports and prevent formatting
 import sys  # nopep8
 from os.path import dirname, join, abspath
-from pytorch_lightning.loggers.base import rank_zero_experiment
 from pytorch_lightning.utilities.distributed import rank_zero_only  # nopep8
 sys.path.insert(0, abspath(join(dirname(__file__), '../..')))  # nopep8
 
@@ -27,7 +26,7 @@ if __name__ == '__main__':
     parser = get_training_parser()
     config = parse_config(parser)
     before_run(config)
-    print("Loading Data")
+    print("Loading Data in rank", rank_zero_only.rank)
     if config.celeba:
         dm = CelebADataModule(
             config.data_dir, config.batch_size, config.workers, config.image_resizing, fast_debug=config.fast_debug)
@@ -49,15 +48,16 @@ if __name__ == '__main__':
     # Filter out None cmd args so that they don't overwrite the default values specified in the implementation
     filtered_keyword_args = {k: v for k,
                              v in gan_keyword_args.items() if v is not None}
-    model = GANClass(
-        *dm.size(), **filtered_keyword_args).set_argparse_config(config)
 
     if config.use_checkpoint:
         model = GANClass.load_from_checkpoint(
             config.use_checkpoint).set_argparse_config(config)
-    if config.transfer_learning:
+    elif config.transfer_learning:
         model = GANClass.load_from_checkpoint(
             config.transfer_learning, strict=False, **filtered_keyword_args).set_argparse_config(config)
+    else:
+        model = GANClass(
+            *dm.size(), **filtered_keyword_args).set_argparse_config(config)
 
     if rank_zero_only.rank == 0:
         start_wandb_logging(config, model, project=config.wandb_project_name)
@@ -67,7 +67,7 @@ if __name__ == '__main__':
         dirpath=config.results_dir, save_last=True)
     trainer = pl.Trainer.from_argparse_args(config, gpus=config.gpus, max_epochs=config.epochs, accelerator='ddp',
                                             progress_bar_refresh_rate=1, logger=logger, callbacks=[checkpoint_callback])
-
+    print("Starting training in rank", rank_zero_only.rank)
     trainer.fit(model, dm)
     if rank_zero_only.rank == 0:
         push_file_to_wandb(f"{config.results_dir}/*")

@@ -10,7 +10,7 @@ import torch
 import numpy as np
 import pytorch_lightning as pl
 from torchmetrics.functional import accuracy, hamming_distance, f1
-
+from pytorch_lightning.utilities.distributed import rank_zero_only
 from src.common.helpers import push_file_to_wandb, randomly_flip_labels
 
 
@@ -62,7 +62,8 @@ class GAN(pl.LightningModule):
     ):
         super().__init__()
         self.save_hyperparameters()
-        print("Using hyperparameters:\n", self.hparams)
+        if rank_zero_only.rank == 0:
+            print("Using hyperparameters:\n", self.hparams)
 
         # networks
         data_shape = (channels, width, height)
@@ -251,8 +252,8 @@ class GAN(pl.LightningModule):
             if k in model_state_dict:
                 if state_dict[k].shape != model_state_dict[k].shape:
                     print(f"Skip loading parameter: {k}, "
-                                f"required shape: {model_state_dict[k].shape}, "
-                                f"loaded shape: {state_dict[k].shape}")
+                          f"required shape: {model_state_dict[k].shape}, "
+                          f"loaded shape: {state_dict[k].shape}")
                     state_dict[k] = model_state_dict[k]
                     is_changed = True
             else:
