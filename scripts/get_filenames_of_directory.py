@@ -25,5 +25,5 @@ f.close()
 files = os.listdir(config.data_dir)
 with open(write_file, "a") as output_file:
     for file in files:
-        if file[-len(postfix):] == postfix and file[len(prefix)] != prefix:
+        if file[-len(postfix):] == postfix and file[:len(prefix)] != prefix:
             output_file.write(f'{file}\n')
