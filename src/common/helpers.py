@@ -85,7 +85,8 @@ def before_run(config: Namespace):
         os.environ["WANDB_MODE"] = "dryrun"
 
     load_dotenv()
-    if not config.celeba and not config.cs_chan:
+    
+    if not config.celeba and not config.cs_chan and not config.artemis:
         config.annotations_file = filter_dataset(config)
 
 
