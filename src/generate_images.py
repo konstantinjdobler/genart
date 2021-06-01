@@ -34,7 +34,9 @@ parser.add_argument('--num-images', '-n', type=int,
                     default=64, help="Number of images to generate.")
 parser.add_argument('--output-image', '-o', type=str,
                     default="output/image.png", help="Location of output image.")
-parser.add_argument('--condition-template', type=str, default="emotions",
+parser.add_argument('--nrow', '-nr', type=int,
+                    default=8, help="Number of rows in the final grid.")
+parser.add_argument('--condition-template', type=str, default="",
                     help="parse conditions from file OR use to specify conditions type: emotions or faces")
 parser.add_argument('--conditions', type=str, nargs="+", default=[],
                     help="specify conditions by cmd arg")
@@ -50,7 +52,7 @@ def loadAttributes(attributesPath):
 
 
 if __name__ == "__main__":
-    # TODO: seed
+    # TODO: seed, otherwise there is no way to reconstruct the sample images
     config = parser.parse_args()
     print(config)
 
@@ -63,9 +65,10 @@ if __name__ == "__main__":
     model: GAN = gan_class.load_from_checkpoint(
         checkpoint_file, map_location=torch.device("cpu"))
     model.eval()
-    latent_dim = model.hparams.latent_dim
+    latent_dim, batch_size, num_labels = model.hparams.latent_dim, model.hparams.batch_size, model.hparams.num_labels
+    print(model.hparams)
 
-    z = torch.randn(config.num_images, latent_dim, 1, 1)
+    z = torch.randn(batch_size, latent_dim, 1, 1)
     if config.conditions:
         condition_template = emotions if config.condition_template == "emotions" else faces
         for cond_name in config.conditions:
@@ -79,8 +82,11 @@ if __name__ == "__main__":
         labels = torch.cat(config.num_images *
                            [loadAttributes(config.condition_template)])
     else:
-        labels = model.example_label_array
-    output = model.generator(z, labels)
-    grid = torchvision.utils.make_grid(output)
-    img = wandb.Image(grid)
-    img._image.save(config.output_image)
+        print("Using default labels")
+        # labels = model.example_label_array
+        labels = torch.zeros(batch_size, num_labels, 1, 1)
+    with torch.no_grad():
+        output = model.generator(z, labels)
+        grid = torchvision.utils.make_grid(output[:config.num_images], nrow=config.nrow)
+        img = wandb.Image(grid)
+        img._image.save(config.output_image)
