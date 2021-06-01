@@ -75,7 +75,7 @@ if __name__ == '__main__':
         accelerator = None
 
     trainer = pl.Trainer.from_argparse_args(config, gpus=config.gpus, max_epochs=config.epochs, accelerator=accelerator,
-                                            progress_bar_refresh_rate=1, logger=logger, callbacks=[checkpoint_callback])
+                                            progress_bar_refresh_rate=1, logger=logger, callbacks=[checkpoint_callback], resume_from_checkpoint=config.use_checkpoint)
     print("Starting training in rank", rank_zero_only.rank)
     trainer.fit(model, dm)
     if rank_zero_only.rank == 0:
