@@ -31,7 +31,6 @@ If you get an error like `W ParallelNative.cpp:206] Warning:`, run `export OMP_N
       shutil._USE_CP_SENDFILE = False
     ```
 ### Distributed Training (Multi-GPU)
-- you need to run `export PL_TORCH_DISTRIBUTED_BACKEND=gloo` before you start the training script
 - specify the GPU _indices_ with the `--gpus` flag. E.g. `--gpus 1 3` will start the training on the GPUs with the indices 1 and 3
 ## Score Setup
 

@@ -69,6 +69,7 @@ if __name__ == '__main__':
 
     if isinstance(config.gpus, list) and len(config.gpus > 1):
         accelerator = 'ddp'
+        # experienced "deadlock" bug with the standard nccl backend
         os.environ["PL_TORCH_DISTRIBUTED_BACKEND"] = "gloo"
     else:
         accelerator = None
