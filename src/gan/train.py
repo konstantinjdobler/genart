@@ -1,4 +1,5 @@
 # Fix imports and prevent formatting
+import os
 import sys  # nopep8
 from os.path import dirname, join, abspath
 from pytorch_lightning.utilities.distributed import rank_zero_only  # nopep8
@@ -65,7 +66,14 @@ if __name__ == '__main__':
                          experiment=wandb.run)
     checkpoint_callback = ModelCheckpoint(
         dirpath=config.results_dir, save_last=True)
-    trainer = pl.Trainer.from_argparse_args(config, gpus=config.gpus, max_epochs=config.epochs, accelerator='ddp',
+
+    if isinstance(config.gpus, list) and len(config.gpus > 1):
+        accelerator = 'ddp'
+        os.environ["PL_TORCH_DISTRIBUTED_BACKEND"] = "gloo"
+    else:
+        accelerator = None
+
+    trainer = pl.Trainer.from_argparse_args(config, gpus=config.gpus, max_epochs=config.epochs, accelerator=accelerator,
                                             progress_bar_refresh_rate=1, logger=logger, callbacks=[checkpoint_callback])
     print("Starting training in rank", rank_zero_only.rank)
     trainer.fit(model, dm)
