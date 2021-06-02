@@ -26,8 +26,6 @@ def get_training_parser():
                         help="If wanted, specify path to checkpoint file to load for transfer learning")
     parser.add_argument('--celeba', action='store_true')
     parser.add_argument('--cs-chan', action='store_true')
-
-=======
     parser.add_argument('--artemis', action='store_true')
     parser.add_argument('--queries', '-q', type=str, nargs='+',
                         help="Query the dataset with the help of pandas query")
