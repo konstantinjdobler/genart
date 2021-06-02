@@ -288,8 +288,8 @@ class ArtEmisAnnotatedImageDataset(Dataset):
         # example image name 'https://uploads7.wikiart.org/images/vladimir-borovikovsky/portrait-of-torsukov-ardalyon-1795.jpg'
         self.image_files = [
             {
-                'path': Path(image_root) / "-".join(entry.split("/")[-2:]),
-                'annotations': torch.FloatTensor(np.zeros(20))
+                'path': Path(image_root) / "-".join(entry.split(",")[0].split("/")[-2:]),
+                'annotations': torch.FloatTensor(list(map(annotation_map.get, entry.split(',')[1:])))
             } for entry in data[1:]
         ]
         if fast_debug:
