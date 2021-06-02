@@ -57,9 +57,9 @@ def _download_file(url):
         if r.status_code == 200:
             # otherwise the downloaded image file's size will be zero
             r.raw.decode_content = True
-        # "-".join("https://uploads7.wikiart.org/images/sam-francis/untitled-yellow-1961.jpg".split("/")[-2:]) == 'sam-francis-untitled-yellow-1961.jpg'
+        # "_".join("https://uploads7.wikiart.org/images/sam-francis/untitled-yellow-1961.jpg".split("/")[-2:]) == 'sam-francis-untitled-yellow-1961.jpg'
             # should be underscore '_' if taken from original artwork name
-            filename = "-".join(url.split("/")[-2:])
+            filename = "_".join(url.split("/")[-2:])
 
             # define data storage for crawling run here
             external_directory = "/Volumes/Extreme SSD/artEmis_crawls/crawl6"
