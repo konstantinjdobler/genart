@@ -10,7 +10,7 @@ import torch
 import numpy as np
 import pytorch_lightning as pl
 from torchmetrics.functional import accuracy, hamming_distance, f1
-
+from pytorch_lightning.utilities.distributed import rank_zero_only
 from src.common.helpers import push_file_to_wandb, randomly_flip_labels
 
 
@@ -31,7 +31,7 @@ class ConditionMode(Enum):
     unconditional = "unconditional"
     simple_conditioning = "simple_conditioning"
     simple_embedding = "simple_embedding"  # TODO: implement this
-    auxiliary = "auxiliary"  # TODO: implement this
+    auxiliary = "auxiliary"
 
 
 from src.gan.inner_gans import DCGenerator, DCDiscriminator  # nopep8 # avoid cyclical import error
@@ -62,7 +62,8 @@ class GAN(pl.LightningModule):
     ):
         super().__init__()
         self.save_hyperparameters()
-        print("Using hyperparameters:\n", self.hparams)
+        if rank_zero_only.rank == 0:
+            print("Using hyperparameters:\n", self.hparams)
 
         # networks
         data_shape = (channels, width, height)
@@ -220,6 +221,7 @@ class GAN(pl.LightningModule):
             self.discriminator.parameters(), lr=lr, betas=(b1, b2))
         return [opt_d, opt_g], []
 
+    @rank_zero_only
     def on_train_epoch_end(self, outputs):
         epoch_length = len(outputs[0])
         # Don't log every epoch, it's too much... maybe a cmd arg later on
@@ -242,6 +244,25 @@ class GAN(pl.LightningModule):
         # But we seems to get errors when we do it often
         if self.current_epoch % (3*log_interval) != 0:
             push_file_to_wandb(f"{self.argparse_config.results_dir}/last.ckpt")
+
+    def on_load_checkpoint(self, checkpoint: dict) -> None:
+        state_dict = checkpoint["state_dict"]
+        model_state_dict = self.state_dict()
+        is_changed = False
+        for k in state_dict:
+            if k in model_state_dict:
+                if state_dict[k].shape != model_state_dict[k].shape:
+                    print(f"Skip loading parameter: {k}, "
+                          f"required shape: {model_state_dict[k].shape}, "
+                          f"loaded shape: {state_dict[k].shape}")
+                    state_dict[k] = model_state_dict[k]
+                    is_changed = True
+            else:
+                print(f"Dropping parameter {k}")
+                is_changed = True
+
+        if is_changed:
+            checkpoint.pop("optimizer_states", None)
 
 
 class WGAN_GP(GAN):

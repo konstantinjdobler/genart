@@ -111,10 +111,14 @@ class DCDiscriminator(nn.Module):
             Conv2dBlock(in_channels=image_in_channels, out_channels=n_filters,
                         downsampling_factor=2, normalization=False),
             *middle_scaling_layers,
-            Conv2dBlock(in_channels=n_filters * 2**num_middle_scaling_layers,
-                        out_channels=1, kernel_size=4, stride=1, padding=0,
-                        normalization=False, activation_function=nn.Identity()),
+            # Conv2dBlock(in_channels=n_filters * 2**num_middle_scaling_layers,
+            #             out_channels=1, kernel_size=4, stride=1, padding=0,
+            #             normalization=False, activation_function=nn.Identity()),
         )
+        self.feature_representation_size = n_filters * \
+            2**num_middle_scaling_layers * 4**2
+        self.adversarial_head = nn.Linear(
+            self.feature_representation_size, 1)
 
         self._setup_condition_mode(
             condition_mode, num_labels, n_filters, num_middle_scaling_layers)
@@ -125,14 +129,14 @@ class DCDiscriminator(nn.Module):
                                              self.input_image_size * self.input_image_size)
         if condition_mode == ConditionMode.auxiliary:
             # truncate last convolution to get feature representation of image
-            self.main = self.main[:-1]
+            # self.main = self.main[:-1]
             # n_filters * 2**num_middle_scaling_layers is the number of channels and 4**2 the spatial dimensions
-            self.feature_representation_size = n_filters * \
-                2**num_middle_scaling_layers * 4**2
+            # self.feature_representation_size = n_filters * \
+            #     2**num_middle_scaling_layers * 4**2
             self.classification_head = nn.Linear(
                 self.feature_representation_size, num_labels)
-            self.adversarial_head = nn.Linear(
-                self.feature_representation_size, 1)
+            # self.adversarial_head = nn.Linear(
+            #     self.feature_representation_size, 1)
 
          # Set appropriate forward hook
         self.forward = getattr(self, f"_{condition_mode.value}_forward")
@@ -145,12 +149,17 @@ class DCDiscriminator(nn.Module):
         labels = self.condition_input(
             labels).view(-1, 1, self.input_image_size, self.input_image_size)
         x = torch.cat([x, labels], 1)
-        return self.main(x).view(-1, 1)
+        batch_size = x.shape[0]
+        image_feature_representation = self.main(x).view(batch_size, -1)
+        adversarial_out = self.adversarial_head(image_feature_representation)
+        return adversarial_out
 
     def _unconditional_forward(self, x, labels):
         '''labels is not used'''
-
-        return self.main(x).view(-1, 1)
+        batch_size = x.shape[0]
+        image_feature_representation = self.main(x).view(batch_size, -1)
+        adversarial_out = self.adversarial_head(image_feature_representation)
+        return adversarial_out
 
     def _auxiliary_forward(self, x, labels):
         '''labels is not used'''
