@@ -49,7 +49,7 @@ def start_wandb_logging(cfg, model, project):
 
 
 def push_file_to_wandb(filepath):
-    wandb.save(filepath)
+    wandb.save(filepath, os.path.dirname(filepath))
 
 
 def randomly_flip_labels(labels, p: float = 0.05):
