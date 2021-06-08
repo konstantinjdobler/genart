@@ -5,6 +5,7 @@ import pandas as pd
 from multiprocessing import Pool
 import os
 import re
+import time
 
 """
 Scraping the Wikiarts web page for the downloaded ArtEmis images
@@ -30,6 +31,8 @@ def _get_csv_entries(csv_file='first_artemis_paintings.txt'):
 
 def _get_html_request(property_url):
     try:
+        # prevent request errors
+        time.sleep(0.01)
         html_request = requests.get(property_url)
     except Exception as e:
         print(f'REQUEST ERROR: {property_url}\n\terror_desc: {e}')
@@ -59,7 +62,7 @@ def crawl(url, multiple=[]):
                 request_status_code = html_request.status_code
             else:
                 print(f'REQUEST REJECTED: {picture_name}')
-                return (None, f'error: + {picture_name}')
+                return (None, f'error:{picture_name}')
 
         if request_status_code == 200:
             data["name"] = picture_name
@@ -125,22 +128,25 @@ def crawl(url, multiple=[]):
 
         else:
             print(f'404 NOT FOUND: {picture_name}')
-            return (None, f'error: {picture_name}')
+            return (None, f'404:{picture_name}')
 
     else:
         print(f'REQUEST REJECTED: {picture_name}')
-        return (None, f'error: + {picture_name}')
+        return (None, f'error:{picture_name}')
 
 
 if __name__ == '__main__':
 
     json_file = {}
-    csv_file = "first_artemis_paintings.txt"
-    # csv_file = "currently_downloaded_artemis_paintings.txt"
+    # TODO search for existing artemis dataset file in directory
+    # Test file
+    # csv_file = "first_artemis_paintings.txt"
+    csv_file = "currently_downloaded_artemis_paintings.txt"
 
     csv_entries = _get_csv_entries(csv_file)
 
-    with Pool(os.cpu_count()) as p:
+    # os.cpu_count() equals 128 on gpu server -> triggers too many requests simultaneously
+    with Pool(4) as p:
         json_array = p.map(crawl, csv_entries)
 
     json_list = list(filter(None, [tup[0] for tup in json_array]))
