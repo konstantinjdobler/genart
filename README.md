@@ -1,4 +1,4 @@
-# GenArt Spike
+# GenArt 
 
 ## Setup
 
